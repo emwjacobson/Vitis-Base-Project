@@ -1,4 +1,4 @@
-TARGET = sw_emu
+TARGET = hw
 PLATFORM = xilinx_u280_xdma_201920_3
 VPP = v++
 GPP = g++
