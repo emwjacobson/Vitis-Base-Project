@@ -27,6 +27,7 @@
 #include <iostream>
 #include <fstream>
 #include <CL/cl2.hpp>
+#include <chrono>
 
 #include <tfhe/tfhe.h>
 #include <tfhe/tfhe_io.h>
@@ -35,11 +36,42 @@
 std::vector<cl::Device> get_xilinx_devices();
 char* read_binary_file(const std::string &xclbin_file_name, unsigned &nb);
 
+// elementary full comparator gate that is used to compare the i-th bit:
+//   input: ai and bi the i-th bit of a and b
+//          lsb_carry: the result of the comparison on the lowest bits
+//   algo: if (a==b) return lsb_carry else return b
+void compare_bit(LweSample* result, const LweSample* a, const LweSample* b, const LweSample* lsb_carry, LweSample* tmp, const TFheGateBootstrappingCloudKeySet* bk) {
+    bootsXNOR(tmp, a, b, bk);
+    bootsMUX(result, tmp, lsb_carry, a, bk);
+}
+
+// this function compares two multibit words, and puts the max in result
+void minimum(LweSample* result, const LweSample* a, const LweSample* b, const int nb_bits, const TFheGateBootstrappingCloudKeySet* bk) {
+    LweSample* tmps = new_gate_bootstrapping_ciphertext_array(2, bk->params);
+
+    //initialize the carry to 0
+    bootsCONSTANT(&tmps[0], 0, bk);
+    //run the elementary comparator gate n times
+    for (int i=0; i<nb_bits; i++) {
+        compare_bit(&tmps[0], &a[i], &b[i], &tmps[0], &tmps[1], bk);
+    }
+    //tmps[0] is the result of the comparaison: 0 if a is larger, 1 if b is larger
+    //select the max and copy it to the result
+    for (int i=0; i<nb_bits; i++) {
+        bootsMUX(&result[i], &tmps[0], &b[i], &a[i], bk);
+    }
+
+    delete_gate_bootstrapping_ciphertext_array(2, tmps);
+}
+
+
 // ------------------------------------------------------------------------------------
 // Main program
 // ------------------------------------------------------------------------------------
 int main(int argc, char** argv) {
-
+    // Generate Keys
+    printf("Generating keys START\n");
+    auto start = std::chrono::high_resolution_clock::now();
     const int minimum_lambda = 110;
     TFheGateBootstrappingParameterSet* params = new_default_gate_bootstrapping_parameters(minimum_lambda);
 
@@ -55,11 +87,113 @@ int main(int argc, char** argv) {
     export_tfheGateBootstrappingCloudKeySet_toFile(cloud_key, &key->cloud);
     fclose(cloud_key);
 
+    auto end = std::chrono::high_resolution_clock::now();
+    printf("Generating keys END %lims\n", std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count());
+
+
+    // Encrypt Data
+    printf("Encrypting data START\n");
+    start = std::chrono::high_resolution_clock::now();
+
+    int16_t data1 = 2017;
+    LweSample* ctext1 = new_gate_bootstrapping_ciphertext_array(16, params);
+    for(int i=0; i<16; i++) {
+        bootsSymEncrypt(&ctext1[i], (data1 >> i) & 1, key);
+    }
+
+    int16_t data2 = 2016;
+    LweSample* ctext2 = new_gate_bootstrapping_ciphertext_array(16, params);
+    for (int i = 0; i < 16; i++) {
+        bootsSymEncrypt(&ctext2[i], (data2 >> i) & 1, key);
+    }
+
+    FILE* cloud_data = fopen("cloud.data", "wb");
+    for(int i=0; i<16; i++) {
+        export_gate_bootstrapping_ciphertext_toFile(cloud_data, &ctext1[i], params);
+    }
+    for(int i=0; i<16; i++) {
+        export_gate_bootstrapping_ciphertext_toFile(cloud_data, &ctext2[i], params);
+    }
+    fclose(cloud_data);
+
+    delete_gate_bootstrapping_ciphertext_array(16, ctext1);
+    delete_gate_bootstrapping_ciphertext_array(16, ctext2);
+
     delete_gate_bootstrapping_secret_keyset(key);
     delete_gate_bootstrapping_parameters(params);
 
-    exit(0);
+    end = std::chrono::high_resolution_clock::now();
+    printf("Encrypting data END %lims\n", std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count());
 
+
+    // "Cloud" Data Calculations
+    printf("Cloud calculations START\n");
+    start = std::chrono::high_resolution_clock::now();
+
+    cloud_key = fopen("cloud.key", "rb");
+    TFheGateBootstrappingCloudKeySet* bk = new_tfheGateBootstrappingCloudKeySet_fromFile(cloud_key);
+    fclose(cloud_key);
+
+    const TFheGateBootstrappingParameterSet* cloud_params = bk->params;
+    LweSample* ciphertext1 = new_gate_bootstrapping_ciphertext_array(16, cloud_params);
+    LweSample* ciphertext2 = new_gate_bootstrapping_ciphertext_array(16, cloud_params);
+
+    //reads the 2x16 ciphertexts from the cloud file
+    cloud_data = fopen("cloud.data","rb");
+    for (int i=0; i<16; i++) import_gate_bootstrapping_ciphertext_fromFile(cloud_data, &ciphertext1[i], cloud_params);
+    for (int i=0; i<16; i++) import_gate_bootstrapping_ciphertext_fromFile(cloud_data, &ciphertext2[i], cloud_params);
+    fclose(cloud_data);
+
+    LweSample* result = new_gate_bootstrapping_ciphertext_array(16, cloud_params);
+    minimum(result, ciphertext1, ciphertext2, 16, bk);
+
+    FILE* answer_data = fopen("answer.data","wb");
+    for (int i=0; i<16; i++) export_gate_bootstrapping_ciphertext_toFile(answer_data, &result[i], cloud_params);
+    fclose(answer_data);
+
+    delete_gate_bootstrapping_ciphertext_array(16, result);
+    delete_gate_bootstrapping_ciphertext_array(16, ciphertext2);
+    delete_gate_bootstrapping_ciphertext_array(16, ciphertext1);
+    delete_gate_bootstrapping_cloud_keyset(bk);
+
+    end = std::chrono::high_resolution_clock::now();
+    printf("Cloud calculations END %lims\n", std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count());
+
+
+    // Decrypt & Verify
+    printf("Decrypt data START\n");
+    start = std::chrono::high_resolution_clock::now();
+
+    secret_key = fopen("secret.key", "rb");
+    TFheGateBootstrappingSecretKeySet* verify_key = new_tfheGateBootstrappingSecretKeySet_fromFile(secret_key);
+    fclose(secret_key);
+
+    const TFheGateBootstrappingParameterSet* verify_params = verify_key->params;
+    LweSample* answer = new_gate_bootstrapping_ciphertext_array(16, verify_params);
+
+    answer_data = fopen("answer.data","rb");
+    for (int i=0; i<16; i++)
+        import_gate_bootstrapping_ciphertext_fromFile(answer_data, &answer[i], verify_params);
+    fclose(answer_data);
+
+    //decrypt and rebuild the 16-bit plaintext answer
+    int16_t int_answer = 0;
+    for (int i=0; i<16; i++) {
+        int ai = bootsSymDecrypt(&answer[i], verify_key);
+        int_answer |= (ai<<i);
+    }
+
+    printf("And the result is: %d\n",int_answer);
+
+    //clean up all pointers
+    delete_gate_bootstrapping_ciphertext_array(16, answer);
+    delete_gate_bootstrapping_secret_keyset(verify_key);
+
+    end = std::chrono::high_resolution_clock::now();
+    printf("Decrypt data END %lims\n", std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count());
+
+
+    exit(0);
 
 // ------------------------------------------------------------------------------------
 // Step 1: Initialize the OpenCL environment
