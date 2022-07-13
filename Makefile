@@ -20,7 +20,11 @@ hw_emu: clean all
 app: ./src/host.cpp
 	${GPP} -Wall -g -std=c++11 ./src/host.cpp -o app \
 		-I${XILINX_XRT}/include/ \
-		-L${XILINX_XRT}/lib/ -lOpenCL -lpthread -lrt -lstdc++
+		-L${XILINX_XRT}/lib/ \
+		-I${CURDIR}/include/ \
+		-L${CURDIR}/lib/ \
+		-ltfhe-nayuki-portable \
+		-lOpenCL -lpthread -lrt -lstdc++
 
 ${KERNEL_NAME}.xo: ./src/${KERNEL_NAME}.cpp
 	${VPP} -c --config ${CONFIG_NAME} -t ${TARGET} -f ${PLATFORM} -k ${KERNEL_NAME} -I./src ./src/${KERNEL_NAME}.cpp -o ${KERNEL_NAME}.xo

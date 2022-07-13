@@ -28,6 +28,9 @@
 #include <fstream>
 #include <CL/cl2.hpp>
 
+#include <tfhe/tfhe.h>
+#include <tfhe/tfhe_io.h>
+
 // Forward declaration of utility functions included at the end of this file
 std::vector<cl::Device> get_xilinx_devices();
 char* read_binary_file(const std::string &xclbin_file_name, unsigned &nb);
@@ -35,8 +38,29 @@ char* read_binary_file(const std::string &xclbin_file_name, unsigned &nb);
 // ------------------------------------------------------------------------------------
 // Main program
 // ------------------------------------------------------------------------------------
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
+
+    const int minimum_lambda = 110;
+    TFheGateBootstrappingParameterSet* params = new_default_gate_bootstrapping_parameters(minimum_lambda);
+
+    uint32_t seed[] = { 314, 1592, 657 };
+    tfhe_random_generator_setSeed(seed, 3);
+    TFheGateBootstrappingSecretKeySet* key = new_random_gate_bootstrapping_secret_keyset(params);
+
+    FILE* secret_key = fopen("secret.key", "wb");
+    export_tfheGateBootstrappingSecretKeySet_toFile(secret_key, key);
+    fclose(secret_key);
+
+    FILE* cloud_key = fopen("cloud.key", "wb");
+    export_tfheGateBootstrappingCloudKeySet_toFile(cloud_key, &key->cloud);
+    fclose(cloud_key);
+
+    delete_gate_bootstrapping_secret_keyset(key);
+    delete_gate_bootstrapping_parameters(params);
+
+    exit(0);
+
+
 // ------------------------------------------------------------------------------------
 // Step 1: Initialize the OpenCL environment
 // ------------------------------------------------------------------------------------
