@@ -47,6 +47,8 @@ void gen_keys();
 void encrypt_data();
 
 int main(int argc, char** argv) {
+    setvbuf(stdout, NULL, _IONBF, 0); // Disable stdout buffering
+
 // ------------------------------------------------------------------------------------
 // Step 1: Initialize the OpenCL environment
 // ------------------------------------------------------------------------------------
@@ -114,24 +116,25 @@ int main(int argc, char** argv) {
 
 
     // Create the buffers
-    cl::Buffer result_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_WRITE_ONLY, sizeof(LweSample));
-    cl::Buffer a_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY, sizeof(LweSample));
-    cl::Buffer b_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY, sizeof(LweSample));
-    cl::Buffer bk_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY, sizeof(TFheGateBootstrappingCloudKeySet));
+    // cl::Buffer result_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_WRITE_ONLY, sizeof(LweSample));
+    // cl::Buffer a_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY, sizeof(LweSample));
+    // cl::Buffer b_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY, sizeof(LweSample));
+    // cl::Buffer bk_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY, sizeof(TFheGateBootstrappingCloudKeySet));
+    cl::Buffer a_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_WRITE, sizeof(LweSample));
 
     // Map to host memory
-    LweSample* _r = (LweSample*)q.enqueueMapBuffer(result_buf, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, sizeof(LweSample), NULL);
-    LweSample* _a = (LweSample*)q.enqueueMapBuffer(a_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(LweSample), NULL);
-    LweSample* _b = (LweSample*)q.enqueueMapBuffer(b_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(LweSample), NULL);
-    TFheGateBootstrappingCloudKeySet* _bk = (TFheGateBootstrappingCloudKeySet*)q.enqueueMapBuffer(bk_buf, CL_TRUE, CL_MAP_WRITE | CL_MAP_READ, 0, sizeof(TFheGateBootstrappingCloudKeySet), NULL);
+    // LweSample* _r = (LweSample*)q.enqueueMapBuffer(result_buf, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, sizeof(LweSample), NULL);
+    // LweSample* _a = (LweSample*)q.enqueueMapBuffer(a_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(LweSample), NULL);
+    // LweSample* _b = (LweSample*)q.enqueueMapBuffer(b_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(LweSample), NULL);
+    // TFheGateBootstrappingCloudKeySet* _bk = (TFheGateBootstrappingCloudKeySet*)q.enqueueMapBuffer(bk_buf, CL_TRUE, CL_MAP_WRITE | CL_MAP_READ, 0, sizeof(TFheGateBootstrappingCloudKeySet), NULL);
+    LweSample* _a = (LweSample*)q.enqueueMapBuffer(a_buf, CL_TRUE, CL_MAP_WRITE | CL_MAP_READ, 0, sizeof(LweSample), NULL);
 
     // Copy values from variables to buffer location
-    // TODO: Might be able to initialize buffers with host pointer that points to the existing data,
-    //       can maybe avoid mapping buffers (except output?) and manually copying data
-    memset(_r, 0, sizeof(LweSample));
+    // memset(_r, 0, sizeof(LweSample));
+    // memcpy(_a, a_cipher, sizeof(LweSample));
+    // memcpy(_b, b_cipher, sizeof(LweSample));
+    // memcpy(_bk, bk, sizeof(TFheGateBootstrappingCloudKeySet));
     memcpy(_a, a_cipher, sizeof(LweSample));
-    memcpy(_b, b_cipher, sizeof(LweSample));
-    memcpy(_bk, bk, sizeof(TFheGateBootstrappingCloudKeySet));
 
     end = std::chrono::high_resolution_clock::now();
     printf("DONE %lims\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
@@ -143,20 +146,30 @@ int main(int argc, char** argv) {
     printf("Executing kernel... ");
     start = std::chrono::high_resolution_clock::now();
 
-    krnl.setArg(0, result_buf);
-    krnl.setArg(1, a_buf);
-    krnl.setArg(2, b_buf);
-    krnl.setArg(3, bk_buf);
+    printf("PRE in->b = %i\n", a_cipher->b);
+    printf("PRE in->current_variance = %f\n", a_cipher->current_variance);
+    printf("PRE in->a[0] = %i\n", a_cipher->a[0]);
 
-    q.enqueueMigrateMemObjects({ a_buf, b_buf, bk_buf }, 0);
+    printf("POST in->b = %i\n", _a->b);
+    printf("POST in->current_variance = %f\n", _a->current_variance);
+    printf("POST in->a[0] = %i\n", _a->a[0]);
+
+    // krnl.setArg(0, result_buf);
+    // krnl.setArg(1, a_buf);
+    // krnl.setArg(2, b_buf);
+    // krnl.setArg(3, bk_buf);
+    krnl.setArg(0, a_buf);
+
+    // q.enqueueMigrateMemObjects({ a_buf, b_buf, bk_buf }, 0);
+    q.enqueueMigrateMemObjects({ a_buf }, 0);
 
     q.enqueueTask(krnl);
 
-    q.enqueueMigrateMemObjects({ result_buf }, CL_MIGRATE_MEM_OBJECT_HOST);
+    // q.enqueueMigrateMemObjects({ result_buf }, CL_MIGRATE_MEM_OBJECT_HOST);
 
     q.finish();
 
-    memcpy(result, _r, sizeof(LweSample));
+    // memcpy(result, _r, sizeof(LweSample));
 
     FILE* answer_data = fopen("answer.data", "wb");
     for(int i = 0; i < 16; i++) {

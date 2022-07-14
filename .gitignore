@@ -11,3 +11,4 @@ app
 *.xclbin*
 *.xo
 *.csv
+*.data

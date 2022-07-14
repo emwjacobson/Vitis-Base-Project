@@ -13,6 +13,8 @@ extern "C" {
   //   bootsMUX(result, tmp, lsb_carry, a, bk);
   // }
 
+
+
   // // this function compares two multibit words, and puts the max in result
   // void test_kernel(LweSample* result, const LweSample* a, const LweSample* b, const int nb_bits, const TFheGateBootstrappingCloudKeySet* bk) {
   // #pragma HLS INTERFACE m_axi port=result
@@ -41,22 +43,25 @@ extern "C" {
 
 
   // void test_kernel(LweSample* result, const LweSample* a, const LweSample* b, const TFheGateBootstrappingCloudKeySet* bk) {
-  // #pragma HLS INTERFACE m_axi port=result
-  // #pragma HLS INTERFACE m_axi port=a
-  // #pragma HLS INTERFACE m_axi port=b
-  // #pragma HLS INTERFACE m_axi port=bk
+  //   // #pragma HLS INTERFACE m_axi port=result
+  //   // #pragma HLS INTERFACE m_axi port=a
+  //   // #pragma HLS INTERFACE m_axi port=b
+  //   // #pragma HLS INTERFACE m_axi port=bk
 
-  //   bootsCONSTANT(result, 42, bk);
+    // bootsCONSTANT(result, 42, bk);
 
   //   return;
   // }
 
-  void test_kernel(LweSample* result, const LweSample* a, const TFheGateBootstrappingCloudKeySet* bk) {
-    #pragma HLS INTERFACE m_axi port=result
-    #pragma HLS INTERFACE m_axi port=bk
+  void test_kernel(LweSample* in) {
+    // #pragma HLS INTERFACE m_axi port=result
+    // #pragma HLS INTERFACE m_axi port=a
+    // #pragma HLS INTERFACE m_axi port=b
+    // #pragma HLS INTERFACE m_axi port=bk
 
-    // bootsCONSTANT(result, 42, bk);
-    memcpy(result, a, sizeof(LweSample));
+    printf("KERNEL in->b = %i\n", in->b);
+    printf("KERNEL in->current_variance = %f\n", in->current_variance);
+    printf("KERNEL in->a[0] = %i\n", in->a[0]);
 
     return;
   }
