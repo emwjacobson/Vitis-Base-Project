@@ -5,9 +5,12 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/include/**",
+                "${workspaceFolder}/src/**",
                 "/usr/include/**"
             ],
-            "defines": [],
+            "defines": [
+                "KERNEL_NAME=\"test_kernel\""
+            ],
             "compilerPath": "/tools/Xilinx/Vitis/2020.1/gnu/aarch32/lin/gcc-arm-none-eabi/bin/arm-none-eabi-gcc",
             "cStandard": "gnu17",
             "cppStandard": "gnu++14",

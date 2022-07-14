@@ -1,2 +1,13 @@
 include/tfhe
 lib/
+_x/
+.Xil/
+.run/
+app
+*.log
+*.compile_summary
+*.key
+*.json
+*.xclbin*
+*.xo
+*.csv
