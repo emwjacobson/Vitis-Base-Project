@@ -60,127 +60,155 @@ int main(int argc, char** argv) {
     char* fileBuf = read_binary_file(binaryFile, fileBufSize);
     cl::Program::Binaries bins{{fileBuf, fileBufSize}};
     cl::Program program(context, devices, bins, NULL, &err);
-    // // cl::CommandQueue q(context, device, CL_QUEUE_PROFILING_ENABLE | CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, &err);
-    // cl::CommandQueue q(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
-    // cl::Kernel krnl(program, KERNEL_NAME, &err);
+    // cl::CommandQueue q(context, device, CL_QUEUE_PROFILING_ENABLE | CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, &err);
+    cl::CommandQueue q(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
+    cl::Kernel krnl(program, KERNEL_NAME, &err);
 
-    return 1;
+// ------------------------------------------------------------------------------------
+// Step 2: Generate Encryption Keys
+// ------------------------------------------------------------------------------------
+    printf("Generating encryption keys... ");
+    auto start = std::chrono::high_resolution_clock::now();
 
-// // ------------------------------------------------------------------------------------
-// // Step 2: Generate Encryption Keys
-// // ------------------------------------------------------------------------------------
-//     gen_keys();
+    gen_keys();
 
-
-// // ------------------------------------------------------------------------------------
-// // Step 3: Encrypt Data
-// // ------------------------------------------------------------------------------------
-//     encrypt_data();
+    auto end = std::chrono::high_resolution_clock::now();
+    printf("DONE %lims\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 
 
-// // ------------------------------------------------------------------------------------
-// // Step 4.1: Setup Buffers
-// // ------------------------------------------------------------------------------------
-//     FILE* cloud_key = fopen("cloud.key", "rb");
-//     TFheGateBootstrappingCloudKeySet* bk = new_tfheGateBootstrappingCloudKeySet_fromFile(cloud_key);
-//     fclose(cloud_key);
-//     const TFheGateBootstrappingParameterSet* cloud_params = bk->params;
-//     LweSample* a_cipher = new_gate_bootstrapping_ciphertext_array(16, cloud_params);
-//     LweSample* b_cipher = new_gate_bootstrapping_ciphertext_array(16, cloud_params);
+// ------------------------------------------------------------------------------------
+// Step 3: Encrypt Data
+// ------------------------------------------------------------------------------------
+    printf("Encrypting data... ");
+    start = std::chrono::high_resolution_clock::now();
 
-//     FILE* cloud_data = fopen("cloud.data", "rb");
-//     for(int i = 0; i < 16; i++) {
-//         import_gate_bootstrapping_ciphertext_fromFile(cloud_data, &a_cipher[i], cloud_params);
-//     }
-//     for(int i = 0; i < 16; i++) {
-//         import_gate_bootstrapping_ciphertext_fromFile(cloud_data, &b_cipher[i], cloud_params);
-//     }
-//     fclose(cloud_data);
+    encrypt_data();
 
-//     LweSample* result = new_gate_bootstrapping_ciphertext_array(16, cloud_params);
-
-//     // Create the buffers
-//     cl::Buffer result_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_WRITE_ONLY, sizeof(LweSample));
-//     cl::Buffer a_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY, sizeof(LweSample));
-//     cl::Buffer b_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY, sizeof(LweSample));
-//     cl::Buffer bk_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY, sizeof(TFheGateBootstrappingCloudKeySet));
-
-//     // Map to host memory
-//     LweSample* _r = (LweSample*)q.enqueueMapBuffer(result_buf, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, sizeof(LweSample), NULL);
-//     LweSample* _a = (LweSample*)q.enqueueMapBuffer(a_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(LweSample), NULL);
-//     LweSample* _b = (LweSample*)q.enqueueMapBuffer(b_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(LweSample), NULL);
-//     TFheGateBootstrappingCloudKeySet* _bk = (TFheGateBootstrappingCloudKeySet*)q.enqueueMapBuffer(bk_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(TFheGateBootstrappingCloudKeySet), NULL);
-
-//     // Copy values from variables to buffer location
-//     memset(_r, 0, sizeof(LweSample));
-//     memcpy(_a, a_cipher, sizeof(LweSample));
-//     memcpy(_b, b_cipher, sizeof(LweSample));
-//     memcpy(_bk, bk, sizeof(TFheGateBootstrappingCloudKeySet));
+    end = std::chrono::high_resolution_clock::now();
+    printf("DONE %lims\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 
 
-// // ------------------------------------------------------------------------------------
-// // Step 4.2: Execute Kernel
-// // ------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------
+// Step 4.1: Setup Buffers
+// ------------------------------------------------------------------------------------
+    printf("Setting up buffers... ");
+    start = std::chrono::high_resolution_clock::now();
 
-//     krnl.setArg(0, result_buf);
-//     krnl.setArg(1, a_buf);
-//     krnl.setArg(2, b_buf);
-//     krnl.setArg(3, 16);
-//     krnl.setArg(4, bk_buf);
+    FILE* cloud_key = fopen("cloud.key", "rb");
+    TFheGateBootstrappingCloudKeySet* bk = new_tfheGateBootstrappingCloudKeySet_fromFile(cloud_key);
+    fclose(cloud_key);
+    const TFheGateBootstrappingParameterSet* cloud_params = bk->params;
+    LweSample* a_cipher = new_gate_bootstrapping_ciphertext_array(16, cloud_params);
+    LweSample* b_cipher = new_gate_bootstrapping_ciphertext_array(16, cloud_params);
 
-//     q.enqueueMigrateMemObjects({ a_buf, b_buf, bk_buf }, 0);
+    FILE* cloud_data = fopen("cloud.data", "rb");
+    for(int i = 0; i < 16; i++) {
+        import_gate_bootstrapping_ciphertext_fromFile(cloud_data, &a_cipher[i], cloud_params);
+    }
+    for(int i = 0; i < 16; i++) {
+        import_gate_bootstrapping_ciphertext_fromFile(cloud_data, &b_cipher[i], cloud_params);
+    }
+    fclose(cloud_data);
 
-//     q.enqueueTask(krnl);
-
-//     q.enqueueMigrateMemObjects({ result_buf }, CL_MIGRATE_MEM_OBJECT_HOST);
-
-//     q.finish();
-
-//     memcpy(result, _r, sizeof(LweSample));
-
-//     FILE* answer_data = fopen("answer.data", "wb");
-//     for(int i = 0; i < 16; i++) {
-//         export_gate_bootstrapping_ciphertext_toFile(answer_data, &result[i], cloud_params);
-//     }
-//     fclose(answer_data);
-
-//     delete_gate_bootstrapping_ciphertext_array(16, result);
-//     delete_gate_bootstrapping_ciphertext_array(16, b_cipher);
-//     delete_gate_bootstrapping_ciphertext_array(16, a_cipher);
-//     delete_gate_bootstrapping_cloud_keyset(bk);
+    LweSample* result = new_gate_bootstrapping_ciphertext_array(16, cloud_params);
 
 
-// // ------------------------------------------------------------------------------------
-// // Step 5: Verify
-// // ------------------------------------------------------------------------------------
-//     FILE* secret_key = fopen("secret.key", "rb");
-//     TFheGateBootstrappingSecretKeySet* verify_key = new_tfheGateBootstrappingSecretKeySet_fromFile(secret_key);
-//     fclose(secret_key);
+    // Create the buffers
+    cl::Buffer result_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_WRITE_ONLY, sizeof(LweSample));
+    cl::Buffer a_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY, sizeof(LweSample));
+    cl::Buffer b_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY, sizeof(LweSample));
+    cl::Buffer bk_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY, sizeof(TFheGateBootstrappingCloudKeySet));
 
-//     const TFheGateBootstrappingParameterSet* verify_params = verify_key->params;
-//     LweSample* answer = new_gate_bootstrapping_ciphertext_array(16, verify_params);
+    // Map to host memory
+    LweSample* _r = (LweSample*)q.enqueueMapBuffer(result_buf, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, sizeof(LweSample), NULL);
+    LweSample* _a = (LweSample*)q.enqueueMapBuffer(a_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(LweSample), NULL);
+    LweSample* _b = (LweSample*)q.enqueueMapBuffer(b_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(LweSample), NULL);
+    TFheGateBootstrappingCloudKeySet* _bk = (TFheGateBootstrappingCloudKeySet*)q.enqueueMapBuffer(bk_buf, CL_TRUE, CL_MAP_WRITE | CL_MAP_READ, 0, sizeof(TFheGateBootstrappingCloudKeySet), NULL);
 
-//     answer_data = fopen("answer.data", "rb");
-//     for(int i = 0; i < 16; i++) {
-//         import_gate_bootstrapping_ciphertext_fromFile(answer_data, &answer[i], verify_params);
-//     }
-//     fclose(answer_data);
+    // Copy values from variables to buffer location
+    // TODO: Might be able to initialize buffers with host pointer that points to the existing data,
+    //       can maybe avoid mapping buffers (except output?) and manually copying data
+    memset(_r, 0, sizeof(LweSample));
+    memcpy(_a, a_cipher, sizeof(LweSample));
+    memcpy(_b, b_cipher, sizeof(LweSample));
+    memcpy(_bk, bk, sizeof(TFheGateBootstrappingCloudKeySet));
 
-//     int16_t int_answer = 0;
-//     for(int i = 0; i < 16; i++) {
-//         int ai = bootsSymDecrypt(&answer[i], verify_key);
-//         int_answer |= (ai << i);
-//     }
-
-//     printf("The answer is: %d\n", int_answer);
-
-//     delete_gate_bootstrapping_ciphertext_array(16, answer);
-//     delete_gate_bootstrapping_secret_keyset(verify_key);
+    end = std::chrono::high_resolution_clock::now();
+    printf("DONE %lims\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 
 
+// ------------------------------------------------------------------------------------
+// Step 4.2: Execute Kernel
+// ------------------------------------------------------------------------------------
+    printf("Executing kernel... ");
+    start = std::chrono::high_resolution_clock::now();
 
-//     delete[] fileBuf;
-//     exit(0);
+    krnl.setArg(0, result_buf);
+    krnl.setArg(1, a_buf);
+    krnl.setArg(2, b_buf);
+    krnl.setArg(3, bk_buf);
+
+    q.enqueueMigrateMemObjects({ a_buf, b_buf, bk_buf }, 0);
+
+    q.enqueueTask(krnl);
+
+    q.enqueueMigrateMemObjects({ result_buf }, CL_MIGRATE_MEM_OBJECT_HOST);
+
+    q.finish();
+
+    memcpy(result, _r, sizeof(LweSample));
+
+    FILE* answer_data = fopen("answer.data", "wb");
+    for(int i = 0; i < 16; i++) {
+        export_gate_bootstrapping_ciphertext_toFile(answer_data, &result[i], cloud_params);
+    }
+    fclose(answer_data);
+
+    delete_gate_bootstrapping_ciphertext_array(16, result);
+    delete_gate_bootstrapping_ciphertext_array(16, b_cipher);
+    delete_gate_bootstrapping_ciphertext_array(16, a_cipher);
+    delete_gate_bootstrapping_cloud_keyset(bk);
+
+    end = std::chrono::high_resolution_clock::now();
+    printf("DONE %lims\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
+
+
+// ------------------------------------------------------------------------------------
+// Step 5: Verify
+// ------------------------------------------------------------------------------------
+    printf("Verifying data... ");
+    start = std::chrono::high_resolution_clock::now();
+
+    FILE* secret_key = fopen("secret.key", "rb");
+    TFheGateBootstrappingSecretKeySet* verify_key = new_tfheGateBootstrappingSecretKeySet_fromFile(secret_key);
+    fclose(secret_key);
+
+    const TFheGateBootstrappingParameterSet* verify_params = verify_key->params;
+    LweSample* answer = new_gate_bootstrapping_ciphertext_array(16, verify_params);
+
+    answer_data = fopen("answer.data", "rb");
+    for(int i = 0; i < 16; i++) {
+        import_gate_bootstrapping_ciphertext_fromFile(answer_data, &answer[i], verify_params);
+    }
+    fclose(answer_data);
+
+    int16_t int_answer = 0;
+    for(int i = 0; i < 16; i++) {
+        int ai = bootsSymDecrypt(&answer[i], verify_key);
+        int_answer |= (ai << i);
+    }
+
+    printf("The answer is: %d\n", int_answer);
+
+    delete_gate_bootstrapping_ciphertext_array(16, answer);
+    delete_gate_bootstrapping_secret_keyset(verify_key);
+
+    end = std::chrono::high_resolution_clock::now();
+    printf("DONE %lims\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
+
+
+    delete[] fileBuf;
+    return 0;
 }
 
 
@@ -252,7 +280,7 @@ void gen_keys() {
 }
 
 void encrypt_data() {
-    FILE* f_secret_key = fopen("secret.key", "wb");
+    FILE* f_secret_key = fopen("secret.key", "rb");
     TFheGateBootstrappingSecretKeySet* secret_key = new_tfheGateBootstrappingSecretKeySet_fromFile(f_secret_key);
     fclose(f_secret_key);
 

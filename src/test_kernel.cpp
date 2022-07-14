@@ -1,5 +1,7 @@
-#include <tfhe/tfhe.h>
-#include <tfhe/tfhe_io.h>
+#include <tfhe.h>
+#include <tfhe_io.h>
+#include <tfhe_gate_bootstrapping_functions.h>
+#include <string.h>
 
 extern "C" {
   // // elementary full comparator gate that is used to compare the i-th bit:
@@ -36,7 +38,26 @@ extern "C" {
   //   return;
   // }
 
-  void text_kernel() {
+
+
+  // void test_kernel(LweSample* result, const LweSample* a, const LweSample* b, const TFheGateBootstrappingCloudKeySet* bk) {
+  // #pragma HLS INTERFACE m_axi port=result
+  // #pragma HLS INTERFACE m_axi port=a
+  // #pragma HLS INTERFACE m_axi port=b
+  // #pragma HLS INTERFACE m_axi port=bk
+
+  //   bootsCONSTANT(result, 42, bk);
+
+  //   return;
+  // }
+
+  void test_kernel(LweSample* result, const LweSample* a, const TFheGateBootstrappingCloudKeySet* bk) {
+    #pragma HLS INTERFACE m_axi port=result
+    #pragma HLS INTERFACE m_axi port=bk
+
+    // bootsCONSTANT(result, 42, bk);
+    memcpy(result, a, sizeof(LweSample));
+
     return;
   }
 }
