@@ -1,5 +1,5 @@
-#include <tfhe.h>
-#include <tfhe_io.h>
+#include <tfhe/tfhe.h>
+#include <tfhe/tfhe_io.h>
 #include <tfhe_gate_bootstrapping_functions.h>
 #include <string.h>
 
@@ -53,15 +53,24 @@ extern "C" {
   //   return;
   // }
 
-  void test_kernel(LweSample* in) {
-    // #pragma HLS INTERFACE m_axi port=result
-    // #pragma HLS INTERFACE m_axi port=a
-    // #pragma HLS INTERFACE m_axi port=b
-    // #pragma HLS INTERFACE m_axi port=bk
+  void test_kernel(LweSample_Container* result, const LweSample_Container* a, const LweSample_Container* b, int nb_bits) {
+    #pragma HLS INTERFACE m_axi port=result
+    #pragma HLS INTERFACE m_axi port=a
+    #pragma HLS INTERFACE m_axi port=b
 
-    printf("KERNEL in->b = %i\n", in->b);
-    printf("KERNEL in->current_variance = %f\n", in->current_variance);
-    printf("KERNEL in->a[0] = %i\n", in->a[0]);
+    printf("KERNEL in->b = %i\n", a[0].b);
+    printf("KERNEL in->current_variance = %f\n", a[0].current_variance);
+    printf("KERNEL in->a[0] = %i\n", a[0].a[0]);
+
+    for(int i=0;i<nb_bits;i++) {
+      for(int j=0;j<630;j++) {
+        result[i].a[j] = a[i].a[j];
+      }
+      result[i].b = a[i].b;
+      result[i].current_variance = a[i].current_variance;
+    }
+
+    // bootsCONSTANT(result, 42, bk);
 
     return;
   }

@@ -12,3 +12,4 @@ app
 *.xo
 *.csv
 *.data
+*.run_summary

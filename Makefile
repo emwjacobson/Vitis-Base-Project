@@ -35,6 +35,7 @@ app: ./src/host.cpp
 ${KERNEL_NAME}.xo: ./src/${KERNEL_NAME}.cpp
 	${VPP} -c --config ${CONFIG_NAME} -t ${TARGET} -f ${PLATFORM} -k ${KERNEL_NAME} -O1 \
 		-I${CURDIR}/src \
+		-I${CURDIR}/include \
    	-I${CURDIR}/tfhe/src/include/ \
 		./src/${KERNEL_NAME}.cpp ${TFHE_SOURCES} -o ${KERNEL_NAME}.xo
 # ${VPP} -c --config ${CONFIG_NAME} -t ${TARGET} -f ${PLATFORM} -k ${KERNEL_NAME} \

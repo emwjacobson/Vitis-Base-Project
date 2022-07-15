@@ -20,7 +20,7 @@
 #define CL_HPP_ENABLE_PROGRAM_CONSTRUCTION_FROM_ARRAY_COMPATIBILITY 1
 #define CL_USE_DEPRECATED_OPENCL_1_2_APIS
 
-#define DATA_SIZE 4096
+#define DATA_LENGTH 16
 
 #include <vector>
 #include <unistd.h>
@@ -100,41 +100,47 @@ int main(int argc, char** argv) {
     TFheGateBootstrappingCloudKeySet* bk = new_tfheGateBootstrappingCloudKeySet_fromFile(cloud_key);
     fclose(cloud_key);
     const TFheGateBootstrappingParameterSet* cloud_params = bk->params;
-    LweSample* a_cipher = new_gate_bootstrapping_ciphertext_array(16, cloud_params);
-    LweSample* b_cipher = new_gate_bootstrapping_ciphertext_array(16, cloud_params);
+    LweSample* a_cipher = new_gate_bootstrapping_ciphertext_array(DATA_LENGTH, cloud_params);
+    LweSample* b_cipher = new_gate_bootstrapping_ciphertext_array(DATA_LENGTH, cloud_params);
 
     FILE* cloud_data = fopen("cloud.data", "rb");
-    for(int i = 0; i < 16; i++) {
+    for(int i = 0; i < DATA_LENGTH; i++) {
         import_gate_bootstrapping_ciphertext_fromFile(cloud_data, &a_cipher[i], cloud_params);
     }
-    for(int i = 0; i < 16; i++) {
+    for(int i = 0; i < DATA_LENGTH; i++) {
         import_gate_bootstrapping_ciphertext_fromFile(cloud_data, &b_cipher[i], cloud_params);
     }
     fclose(cloud_data);
 
-    LweSample* result = new_gate_bootstrapping_ciphertext_array(16, cloud_params);
+    LweSample* result = new_gate_bootstrapping_ciphertext_array(DATA_LENGTH, cloud_params);
 
 
     // Create the buffers
-    // cl::Buffer result_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_WRITE_ONLY, sizeof(LweSample));
-    // cl::Buffer a_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY, sizeof(LweSample));
-    // cl::Buffer b_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY, sizeof(LweSample));
+    cl::Buffer result_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_WRITE, sizeof(LweSample_Container) * DATA_LENGTH);
+    cl::Buffer a_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY, sizeof(LweSample_Container) * DATA_LENGTH);
+    cl::Buffer b_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY, sizeof(LweSample_Container) * DATA_LENGTH);
     // cl::Buffer bk_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY, sizeof(TFheGateBootstrappingCloudKeySet));
-    cl::Buffer a_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_WRITE, sizeof(LweSample));
 
     // Map to host memory
-    // LweSample* _r = (LweSample*)q.enqueueMapBuffer(result_buf, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, sizeof(LweSample), NULL);
-    // LweSample* _a = (LweSample*)q.enqueueMapBuffer(a_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(LweSample), NULL);
-    // LweSample* _b = (LweSample*)q.enqueueMapBuffer(b_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(LweSample), NULL);
-    // TFheGateBootstrappingCloudKeySet* _bk = (TFheGateBootstrappingCloudKeySet*)q.enqueueMapBuffer(bk_buf, CL_TRUE, CL_MAP_WRITE | CL_MAP_READ, 0, sizeof(TFheGateBootstrappingCloudKeySet), NULL);
-    LweSample* _a = (LweSample*)q.enqueueMapBuffer(a_buf, CL_TRUE, CL_MAP_WRITE | CL_MAP_READ, 0, sizeof(LweSample), NULL);
+    LweSample_Container* _result = (LweSample_Container*)q.enqueueMapBuffer(result_buf, CL_TRUE, CL_MAP_WRITE | CL_MAP_READ, 0, sizeof(LweSample_Container) * DATA_LENGTH);
+    LweSample_Container* _a = (LweSample_Container*)q.enqueueMapBuffer(a_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(LweSample_Container) * DATA_LENGTH, NULL, NULL, &err);
+    LweSample_Container* _b = (LweSample_Container*)q.enqueueMapBuffer(b_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(LweSample_Container) * DATA_LENGTH);
+    // TFheGateBootstrappingCloudKeySet* _bk = (TFheGateBootstrappingCloudKeySet*)q.enqueueMapBuffer(bk_buf, CL_TRUE, CL_MAP_WRITE | CL_MAP_READ, 0, sizeof(TFheGateBootstrappingCloudKeySet));
 
     // Copy values from variables to buffer location
-    // memset(_r, 0, sizeof(LweSample));
-    // memcpy(_a, a_cipher, sizeof(LweSample));
-    // memcpy(_b, b_cipher, sizeof(LweSample));
+    for(int i=0; i<DATA_LENGTH; i++) {
+        for (int j=0; j<630; j++) {
+            _a[i].a[j] = a_cipher[i].a[j];
+            _b[i].a[j] = b_cipher[i].a[j];
+        }
+
+        _a[i].b = a_cipher[i].b;
+        _b[i].b = b_cipher[i].b;
+
+        _a[i].current_variance = a_cipher[i].current_variance;
+        _b[i].current_variance = b_cipher[i].current_variance;
+    }
     // memcpy(_bk, bk, sizeof(TFheGateBootstrappingCloudKeySet));
-    memcpy(_a, a_cipher, sizeof(LweSample));
 
     end = std::chrono::high_resolution_clock::now();
     printf("DONE %lims\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
@@ -146,40 +152,49 @@ int main(int argc, char** argv) {
     printf("Executing kernel... ");
     start = std::chrono::high_resolution_clock::now();
 
-    printf("PRE in->b = %i\n", a_cipher->b);
-    printf("PRE in->current_variance = %f\n", a_cipher->current_variance);
-    printf("PRE in->a[0] = %i\n", a_cipher->a[0]);
+    printf("\nPRE in->b = %i\n", a_cipher[0].b);
+    printf("PRE in->current_variance = %f\n", a_cipher[0].current_variance);
+    printf("PRE in->a[0] = %i\n", a_cipher[0].a[0]);
 
-    printf("POST in->b = %i\n", _a->b);
-    printf("POST in->current_variance = %f\n", _a->current_variance);
-    printf("POST in->a[0] = %i\n", _a->a[0]);
+    printf("POST in->b = %i\n", _a[0].b);
+    printf("POST in->current_variance = %f\n", _a[0].current_variance);
+    printf("POST in->a[0] = %i\n", _a[0].a[0]);
 
-    // krnl.setArg(0, result_buf);
-    // krnl.setArg(1, a_buf);
-    // krnl.setArg(2, b_buf);
-    // krnl.setArg(3, bk_buf);
-    krnl.setArg(0, a_buf);
+    krnl.setArg(0, result_buf);
+    krnl.setArg(1, a_buf);
+    krnl.setArg(2, b_buf);
+    krnl.setArg(3, DATA_LENGTH);
 
-    // q.enqueueMigrateMemObjects({ a_buf, b_buf, bk_buf }, 0);
-    q.enqueueMigrateMemObjects({ a_buf }, 0);
+    q.enqueueMigrateMemObjects({ a_buf, b_buf }, 0);
 
     q.enqueueTask(krnl);
 
-    // q.enqueueMigrateMemObjects({ result_buf }, CL_MIGRATE_MEM_OBJECT_HOST);
+    q.enqueueMigrateMemObjects({ result_buf }, CL_MIGRATE_MEM_OBJECT_HOST);
 
     q.finish();
 
-    // memcpy(result, _r, sizeof(LweSample));
+    // Get data back from kernel
+    for(int i=0; i<DATA_LENGTH;i++) {
+        for (int j=0; j<630; j++) {
+            result[i].a[j] = (_result[i]).a[j];
+        }
+        result[i].b = (_result[i]).b;
+        result[i].current_variance = (_result[i]).current_variance;
+    }
+
+    printf("END in->b = %i\n", result[0].b);
+    printf("END in->current_variance = %f\n", result[0].current_variance);
+    printf("END in->a[0] = %i\n", result[0].a[0]);
 
     FILE* answer_data = fopen("answer.data", "wb");
-    for(int i = 0; i < 16; i++) {
+    for(int i = 0; i < DATA_LENGTH; i++) {
         export_gate_bootstrapping_ciphertext_toFile(answer_data, &result[i], cloud_params);
     }
     fclose(answer_data);
 
-    delete_gate_bootstrapping_ciphertext_array(16, result);
-    delete_gate_bootstrapping_ciphertext_array(16, b_cipher);
-    delete_gate_bootstrapping_ciphertext_array(16, a_cipher);
+    delete_gate_bootstrapping_ciphertext_array(DATA_LENGTH, result);
+    delete_gate_bootstrapping_ciphertext_array(DATA_LENGTH, b_cipher);
+    delete_gate_bootstrapping_ciphertext_array(DATA_LENGTH, a_cipher);
     delete_gate_bootstrapping_cloud_keyset(bk);
 
     end = std::chrono::high_resolution_clock::now();
@@ -197,23 +212,23 @@ int main(int argc, char** argv) {
     fclose(secret_key);
 
     const TFheGateBootstrappingParameterSet* verify_params = verify_key->params;
-    LweSample* answer = new_gate_bootstrapping_ciphertext_array(16, verify_params);
+    LweSample* answer = new_gate_bootstrapping_ciphertext_array(DATA_LENGTH, verify_params);
 
     answer_data = fopen("answer.data", "rb");
-    for(int i = 0; i < 16; i++) {
+    for(int i = 0; i < DATA_LENGTH; i++) {
         import_gate_bootstrapping_ciphertext_fromFile(answer_data, &answer[i], verify_params);
     }
     fclose(answer_data);
 
     int16_t int_answer = 0;
-    for(int i = 0; i < 16; i++) {
+    for(int i = 0; i < DATA_LENGTH; i++) {
         int ai = bootsSymDecrypt(&answer[i], verify_key);
         int_answer |= (ai << i);
     }
 
     printf("The answer is: %d\n", int_answer);
 
-    delete_gate_bootstrapping_ciphertext_array(16, answer);
+    delete_gate_bootstrapping_ciphertext_array(DATA_LENGTH, answer);
     delete_gate_bootstrapping_secret_keyset(verify_key);
 
     end = std::chrono::high_resolution_clock::now();
@@ -223,6 +238,12 @@ int main(int argc, char** argv) {
     delete[] fileBuf;
     return 0;
 }
+
+
+
+
+
+
 
 
 
@@ -302,25 +323,25 @@ void encrypt_data() {
     int16_t data1 = MAX_NUMBER;
     int16_t data2 = MIN_NUMBER;
 
-    LweSample* cyphertext1 = new_gate_bootstrapping_ciphertext_array(16, secret_params);
-    LweSample* cyphertext2 = new_gate_bootstrapping_ciphertext_array(16, secret_params);
+    LweSample* cyphertext1 = new_gate_bootstrapping_ciphertext_array(DATA_LENGTH, secret_params);
+    LweSample* cyphertext2 = new_gate_bootstrapping_ciphertext_array(DATA_LENGTH, secret_params);
 
-    for(int i = 0; i< 16; i++) {
+    for(int i = 0; i< DATA_LENGTH; i++) {
         bootsSymEncrypt(&cyphertext1[i], (data1 >> i) & 1, secret_key);
         bootsSymEncrypt(&cyphertext2[i], (data2 >> i) & 1, secret_key);
     }
 
     FILE* cloud_data = fopen("cloud.data", "wb");
-    for(int i = 0; i<16; i++) {
+    for(int i = 0; i<DATA_LENGTH; i++) {
         export_gate_bootstrapping_ciphertext_toFile(cloud_data, &cyphertext1[i], secret_params);
     }
-    for(int i = 0; i<16; i++) {
+    for(int i = 0; i<DATA_LENGTH; i++) {
         export_gate_bootstrapping_ciphertext_toFile(cloud_data, &cyphertext1[2], secret_params);
     }
     fclose(cloud_data);
 
-    delete_gate_bootstrapping_ciphertext_array(16, cyphertext1);
-    delete_gate_bootstrapping_ciphertext_array(16, cyphertext2);
+    delete_gate_bootstrapping_ciphertext_array(DATA_LENGTH, cyphertext1);
+    delete_gate_bootstrapping_ciphertext_array(DATA_LENGTH, cyphertext2);
 
     delete_gate_bootstrapping_secret_keyset(secret_key);
 }
