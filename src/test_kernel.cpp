@@ -53,14 +53,14 @@ extern "C" {
   //   return;
   // }
 
-  void test_kernel(LweSample_Container* result, const LweSample_Container* a, const LweSample_Container* b, int nb_bits) {
+  void test_kernel(LweSample_Container* result, const LweSample_Container* a, const LweSample_Container* b, int nb_bits, volatile const TFheGateBootstrappingCloudKeySet* bk) {
     #pragma HLS INTERFACE m_axi port=result
     #pragma HLS INTERFACE m_axi port=a
     #pragma HLS INTERFACE m_axi port=b
+    #pragma HLS INTERFACE m_axi port=bk
 
-    printf("KERNEL in->b = %i\n", a[0].b);
-    printf("KERNEL in->current_variance = %f\n", a[0].current_variance);
-    printf("KERNEL in->a[0] = %i\n", a[0].a[0]);
+    printf("Here\n");
+    printf("IN KERNEL n=%li\n", bk->params->in_out_params->n);
 
     for(int i=0;i<nb_bits;i++) {
       for(int j=0;j<630;j++) {

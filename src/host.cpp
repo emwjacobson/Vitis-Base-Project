@@ -119,13 +119,13 @@ int main(int argc, char** argv) {
     cl::Buffer result_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_WRITE, sizeof(LweSample_Container) * DATA_LENGTH);
     cl::Buffer a_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY, sizeof(LweSample_Container) * DATA_LENGTH);
     cl::Buffer b_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY, sizeof(LweSample_Container) * DATA_LENGTH);
-    // cl::Buffer bk_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY, sizeof(TFheGateBootstrappingCloudKeySet));
+    cl::Buffer bk_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_WRITE, sizeof(TFheGateBootstrappingCloudKeySet));
 
     // Map to host memory
     LweSample_Container* _result = (LweSample_Container*)q.enqueueMapBuffer(result_buf, CL_TRUE, CL_MAP_WRITE | CL_MAP_READ, 0, sizeof(LweSample_Container) * DATA_LENGTH);
     LweSample_Container* _a = (LweSample_Container*)q.enqueueMapBuffer(a_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(LweSample_Container) * DATA_LENGTH, NULL, NULL, &err);
     LweSample_Container* _b = (LweSample_Container*)q.enqueueMapBuffer(b_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(LweSample_Container) * DATA_LENGTH);
-    // TFheGateBootstrappingCloudKeySet* _bk = (TFheGateBootstrappingCloudKeySet*)q.enqueueMapBuffer(bk_buf, CL_TRUE, CL_MAP_WRITE | CL_MAP_READ, 0, sizeof(TFheGateBootstrappingCloudKeySet));
+    TFheGateBootstrappingCloudKeySet* _bk = (TFheGateBootstrappingCloudKeySet*)q.enqueueMapBuffer(bk_buf, CL_TRUE, CL_MAP_WRITE | CL_MAP_READ, 0, sizeof(TFheGateBootstrappingCloudKeySet));
 
     // Copy values from variables to buffer location
     for(int i=0; i<DATA_LENGTH; i++) {
@@ -140,7 +140,7 @@ int main(int argc, char** argv) {
         _a[i].current_variance = a_cipher[i].current_variance;
         _b[i].current_variance = b_cipher[i].current_variance;
     }
-    // memcpy(_bk, bk, sizeof(TFheGateBootstrappingCloudKeySet));
+    memcpy(_bk, bk, sizeof(TFheGateBootstrappingCloudKeySet));
 
     end = std::chrono::high_resolution_clock::now();
     printf("DONE %lims\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
@@ -152,20 +152,13 @@ int main(int argc, char** argv) {
     printf("Executing kernel... ");
     start = std::chrono::high_resolution_clock::now();
 
-    printf("\nPRE in->b = %i\n", a_cipher[0].b);
-    printf("PRE in->current_variance = %f\n", a_cipher[0].current_variance);
-    printf("PRE in->a[0] = %i\n", a_cipher[0].a[0]);
-
-    printf("POST in->b = %i\n", _a[0].b);
-    printf("POST in->current_variance = %f\n", _a[0].current_variance);
-    printf("POST in->a[0] = %i\n", _a[0].a[0]);
-
     krnl.setArg(0, result_buf);
     krnl.setArg(1, a_buf);
     krnl.setArg(2, b_buf);
     krnl.setArg(3, DATA_LENGTH);
+    krnl.setArg(4, bk_buf);
 
-    q.enqueueMigrateMemObjects({ a_buf, b_buf }, 0);
+    q.enqueueMigrateMemObjects({ a_buf, b_buf, bk_buf }, 0);
 
     q.enqueueTask(krnl);
 
@@ -181,10 +174,6 @@ int main(int argc, char** argv) {
         result[i].b = (_result[i]).b;
         result[i].current_variance = (_result[i]).current_variance;
     }
-
-    printf("END in->b = %i\n", result[0].b);
-    printf("END in->current_variance = %f\n", result[0].current_variance);
-    printf("END in->a[0] = %i\n", result[0].a[0]);
 
     FILE* answer_data = fopen("answer.data", "wb");
     for(int i = 0; i < DATA_LENGTH; i++) {
