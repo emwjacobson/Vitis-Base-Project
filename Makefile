@@ -4,15 +4,15 @@ TARGET := sw_emu
 PROJECT_NAME := maths
 
 KERNEL_XO := vadd.xo vsub.xo
-SRC := host.cpp
+SRC := host.cpp utils.cpp
 
 VPP := v++
 VPP_XO_FLAGS := -c --platform $(PLATFORM)
 VPP_XCLBIN_FLAGS := -l --profile_kernel data:all:all:all --platform $(PLATFORM) -t $(TARGET) --config $(CONFIG_NAME) $(KERNEL_XO) -o $(PROJECT_NAME).xclbin
 
 CXX_FLAGS := -Wall -c -g -std=c++11
-CXX_INCLUDES := -I${XILINX_XRT}/include/
-CXX_LIB := -L${XILINX_XRT}/lib/ -lOpenCL -lpthread -lrt -lstdc++
+CXX_INCLUDES := -I$(XILINX_XRT)/include/ -I$(CURDIR)/include/
+CXX_LIB := -L$(XILINX_XRT)/lib/ -L$(CURDIR)/lib/ -ltfhe-nayuki-portable -lOpenCL -lpthread -lrt -lstdc++
 
 all: xclbin host
 
@@ -37,5 +37,4 @@ xclbin: $(KERNEL_XO)
 	$(VPP) $(VPP_XO_FLAGS) -k $(basename $(notdir $<)) $< -o $@
 
 clean:
-	rm -rf *json *csv *log *summary _x .run .Xil .ipcache *.jou $(KERNEL_XO) *.xclbin* $(PROJECT_NAME) *.o *.xo
-
+	rm -rf *json *csv *log *summary _x .run .Xil .ipcache *.jou $(KERNEL_XO) *.xclbin* $(PROJECT_NAME) *.o *.xo *.key

@@ -10,3 +10,6 @@ _x
 *.xclbin*
 *.o
 *.xo
+include/tfhe
+lib
+*.key

@@ -1,19 +1,3 @@
-/*
- * Copyright 2020 Xilinx, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 #define CL_HPP_CL_1_2_DEFAULT_BUILD
 #define CL_HPP_TARGET_OPENCL_VERSION 120
 #define CL_HPP_MINIMUM_OPENCL_VERSION 120
@@ -21,6 +5,11 @@
 #define CL_USE_DEPRECATED_OPENCL_1_2_APIS
 
 #define DATA_SIZE 4096
+
+#include "utils.hpp"
+
+#include <tfhe/tfhe.h>
+#include <tfhe/tfhe_io.h>
 
 #include <vector>
 #include <unistd.h>
@@ -31,11 +20,87 @@
 // Forward declaration of utility functions included at the end of this file
 std::vector<cl::Device> get_xilinx_devices();
 char* read_binary_file(const std::string &xclbin_file_name, unsigned &nb);
+void gen_keys();
+
+int main(int argc, char** argv) {
+// ------------------------------------------------------------------------------------
+// Step 1: Generate Encryption Keys
+// ------------------------------------------------------------------------------------
+    printf("Generating encryption keys... ");
+
+    int64_t time = time_function(gen_keys);
+
+    printf("DONE %lims\n", time);
+
+// ------------------------------------------------------------------------------------
+// Step 2: Encrypt Data
+// ------------------------------------------------------------------------------------
+
+
+// ------------------------------------------------------------------------------------
+// Step 3: Perform "Cloud" Function
+// ------------------------------------------------------------------------------------
+
+
+// ------------------------------------------------------------------------------------
+// Step 4: Verify
+// ------------------------------------------------------------------------------------
+}
+
+
+
+// ------------------------------------------------------------------------------------
+// Helper Functions
+// ------------------------------------------------------------------------------------
+
+void gen_keys() {
+    int minimum_lambda = 110;
+    TFheGateBootstrappingParameterSet* params = new_default_gate_bootstrapping_parameters(minimum_lambda);
+
+    uint32_t seed[] = { 314, 1337, 1907 };
+    tfhe_random_generator_setSeed(seed, 3);
+    TFheGateBootstrappingSecretKeySet* key = new_random_gate_bootstrapping_secret_keyset(params);
+
+    FILE* f_secret_key = fopen("secret.key", "wb");
+    export_tfheGateBootstrappingSecretKeySet_toFile(f_secret_key, key);
+    fclose(f_secret_key);
+
+    FILE* f_cloud_key = fopen("cloud.key", "wb");
+    export_tfheGateBootstrappingCloudKeySet_toFile(f_cloud_key, &key->cloud);
+    fclose(f_cloud_key);
+
+    delete_gate_bootstrapping_secret_keyset(key);
+    delete_gate_bootstrapping_parameters(params);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // ------------------------------------------------------------------------------------
 // Main program
 // ------------------------------------------------------------------------------------
-int main(int argc, char** argv)
+int main_old(int argc, char** argv)
 {
 // ------------------------------------------------------------------------------------
 // Step 1: Initialize the OpenCL environment
@@ -51,8 +116,8 @@ int main(int argc, char** argv)
     cl::Program::Binaries bins{{fileBuf, fileBufSize}};
     cl::Program program(context, devices, bins, NULL, &err);
     cl::CommandQueue q(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
-    cl::Kernel krnl_vector_add(program,"vadd", &err);
-    cl::Kernel krnl_vector_sub(program,"vsub", &err);
+    cl::Kernel krnl_vector_add(program, "vadd", &err);
+    cl::Kernel krnl_vector_sub(program, "vsub", &err);
 
 // ------------------------------------------------------------------------------------
 // Step 2: Create buffers and initialize test values
