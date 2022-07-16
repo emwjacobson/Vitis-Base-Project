@@ -1,0 +1,12 @@
+*json
+*csv
+*log
+*summary
+_x
+.run
+.Xil
+.ipcache
+*.jou
+*.xclbin*
+*.o
+*.xo

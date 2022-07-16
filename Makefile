@@ -1,32 +1,43 @@
-TARGET = hw
 PLATFORM = xilinx_u280_xdma_201920_3
-VPP = v++
-GPP = g++
-KERNEL_NAME = vadd
-CONFIG_NAME = config.cfg
+CONFIG_NAME := config.cfg
+TARGET := sw_emu
+PROJECT_NAME := maths
 
-all: app ${KERNEL_NAME}.xclbin
+KERNEL_XO := vadd.xo
+SRC := host.cpp
 
-sw_emu: TARGET = sw_emu
-sw_emu: clean all
-	emconfigutil --platform ${PLATFORM} --nd 1
-	XCL_EMULATION_MODE=sw_emu ./app
+VPP := v++
+VPP_XO_FLAGS := -c --platform $(PLATFORM)
+VPP_XCLBIN_FLAGS := -l --profile_kernel data:all:all:all --platform $(PLATFORM) -t $(TARGET) --config $(CONFIG_NAME) $(KERNEL_XO) -o $(PROJECT_NAME).xclbin
 
-hw_emu: TARGET = hw_emu
-hw_emu: clean all
-	emconfigutil --platform ${PLATFORM} --nd 1
-	XCL_EMULATION_MODE=hw_emu ./app
+CXX_FLAGS := -Wall -c -g -std=c++11
+CXX_INCLUDES := -I${XILINX_XRT}/include/
+CXX_LIB := -L${XILINX_XRT}/lib/ -lOpenCL -lpthread -lrt -lstdc++
 
-app: ./src/host.cpp
-	${GPP} -Wall -g -std=c++11 ./src/host.cpp -o app \
-		-I${XILINX_XRT}/include/ \
-		-L${XILINX_XRT}/lib/ -lOpenCL -lpthread -lrt -lstdc++
+all: xclbin host
 
-${KERNEL_NAME}.xo: ./src/${KERNEL_NAME}.cpp
-	${VPP} -c --config ${CONFIG_NAME} -t ${TARGET} -f ${PLATFORM} -k ${KERNEL_NAME} -I./src ./src/${KERNEL_NAME}.cpp -o ${KERNEL_NAME}.xo
+host: $(SRC)
+	$(CXX) *.o $(CXX_LIB) -std=c++11 -o $(PROJECT_NAME)
 
-${KERNEL_NAME}.xclbin: ./${KERNEL_NAME}.xo
-	${VPP} -l --profile_kernel data:all:all:all --config ${CONFIG_NAME} -t ${TARGET} -f ${PLATFORM} ./${KERNEL_NAME}.xo -o ${KERNEL_NAME}.xclbin
+%.cpp: src/%.cpp
+	$(CXX) $(CXX_FLAGS) $(CXX_INCLUDES)  $< -o $(basename $@).o
+
+xclbin: $(KERNEL_XO)
+	$(VPP) $(VPP_XCLBIN_FLAGS)
+
+%.xo: kernels/%.cpp
+	$(VPP) $(VPP_XO_FLAGS) -k $(basename $(notdir $<)) $< -o $@
 
 clean:
-	rm -rf ${KERNEL_NAME}* app *json *csv *log *summary _x .run .Xil .ipcache *.jou
+	rm -rf *json *csv *log *summary _x .run .Xil .ipcache *.jou $(KERNEL_XO) *.xclbin* $(PROJECT_NAME) *.o *.xo
+
+
+# sw_emu: TARGET = sw_emu
+# sw_emu: clean all
+# 	emconfigutil --platform ${PLATFORM} --nd 1
+# 	XCL_EMULATION_MODE=sw_emu ./app
+
+# hw_emu: TARGET = hw_emu
+# hw_emu: clean all
+# 	emconfigutil --platform ${PLATFORM} --nd 1
+# 	XCL_EMULATION_MODE=hw_emu ./app
