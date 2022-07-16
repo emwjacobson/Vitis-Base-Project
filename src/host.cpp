@@ -103,13 +103,13 @@ int main(int argc, char** argv) {
     cl::Buffer result_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_WRITE, sizeof(LweSample_Container) * DATA_LENGTH);
     cl::Buffer a_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY, sizeof(LweSample_Container) * DATA_LENGTH);
     cl::Buffer b_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY, sizeof(LweSample_Container) * DATA_LENGTH);
-    cl::Buffer bk_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_WRITE, sizeof(TFheGateBootstrappingCloudKeySet));
+    cl::Buffer bk_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_WRITE, sizeof(TFheGateBootstrappingCloudKeySet_Container));
 
     // Map to host memory
     LweSample_Container* _result = (LweSample_Container*)q.enqueueMapBuffer(result_buf, CL_TRUE, CL_MAP_WRITE | CL_MAP_READ, 0, sizeof(LweSample_Container) * DATA_LENGTH);
     LweSample_Container* _a = (LweSample_Container*)q.enqueueMapBuffer(a_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(LweSample_Container) * DATA_LENGTH, NULL, NULL, &err);
     LweSample_Container* _b = (LweSample_Container*)q.enqueueMapBuffer(b_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(LweSample_Container) * DATA_LENGTH);
-    TFheGateBootstrappingCloudKeySet* _bk = (TFheGateBootstrappingCloudKeySet*)q.enqueueMapBuffer(bk_buf, CL_TRUE, CL_MAP_WRITE | CL_MAP_READ, 0, sizeof(TFheGateBootstrappingCloudKeySet));
+    TFheGateBootstrappingCloudKeySet_Container* _bk = (TFheGateBootstrappingCloudKeySet_Container*)q.enqueueMapBuffer(bk_buf, CL_TRUE, CL_MAP_WRITE | CL_MAP_READ, 0, sizeof(TFheGateBootstrappingCloudKeySet));
 
     // Copy values from variables to buffer location
     for(int i=0; i<DATA_LENGTH; i++) {
@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
         _a[i].current_variance = a_cipher[i].current_variance;
         _b[i].current_variance = b_cipher[i].current_variance;
     }
-    memcpy(_bk, bk, sizeof(TFheGateBootstrappingCloudKeySet));
+    memcpy(_bk, bk, sizeof(TFheGateBootstrappingCloudKeySet_Container));
 
     end = std::chrono::high_resolution_clock::now();
     printf("DONE %lims\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
@@ -267,8 +267,7 @@ char* read_binary_file(const std::string &xclbin_file_name, unsigned &nb)
 }
 
 void gen_keys() {
-    const int minimum_lambda = 110;
-    TFheGateBootstrappingParameterSet* params = new_default_gate_bootstrapping_parameters(minimum_lambda);
+    TFheGateBootstrappingParameterSet* params = new_default_gate_bootstrapping_parameters();
 
     uint32_t seed[] = { 314, 1337, 1907 };
     tfhe_random_generator_setSeed(seed, 3);
