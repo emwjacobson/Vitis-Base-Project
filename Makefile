@@ -4,7 +4,7 @@ TARGET := sw_emu
 PROJECT_NAME := maths
 
 KERNEL_XO := vadd.xo vsub.xo
-SRC := host.cpp utils.cpp
+SRC := host.cpp utils.cpp cloud.cpp
 
 VPP := v++
 VPP_XO_FLAGS := -c --platform $(PLATFORM)
@@ -37,4 +37,4 @@ xclbin: $(KERNEL_XO)
 	$(VPP) $(VPP_XO_FLAGS) -k $(basename $(notdir $<)) $< -o $@
 
 clean:
-	rm -rf *json *csv *log *summary _x .run .Xil .ipcache *.jou $(KERNEL_XO) *.xclbin* $(PROJECT_NAME) *.o *.xo *.key
+	rm -rf *json *csv *log *summary _x .run .Xil .ipcache *.jou $(KERNEL_XO) *.xclbin* $(PROJECT_NAME) *.o *.xo *.key *.data

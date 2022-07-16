@@ -13,3 +13,4 @@ _x
 include/tfhe
 lib
 *.key
+*.data

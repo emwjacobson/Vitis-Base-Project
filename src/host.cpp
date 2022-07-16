@@ -4,9 +4,12 @@
 #define CL_HPP_ENABLE_PROGRAM_CONSTRUCTION_FROM_ARRAY_COMPATIBILITY 1
 #define CL_USE_DEPRECATED_OPENCL_1_2_APIS
 
-#define DATA_SIZE 4096
+#define MAX_NUMBER 3939
+#define MIN_NUMBER 111
+#define DATA_LENGTH 16
 
 #include "utils.hpp"
+#include "cloud.hpp"
 
 #include <tfhe/tfhe.h>
 #include <tfhe/tfhe_io.h>
@@ -21,181 +24,49 @@
 std::vector<cl::Device> get_xilinx_devices();
 char* read_binary_file(const std::string &xclbin_file_name, unsigned &nb);
 void gen_keys();
+void encrypt_data();
+void cloud();
+void verify_data();
 
 int main(int argc, char** argv) {
+    setvbuf(stdout, NULL, _IONBF, 0); // Disable stdout buffering
+
 // ------------------------------------------------------------------------------------
 // Step 1: Generate Encryption Keys
 // ------------------------------------------------------------------------------------
     printf("Generating encryption keys... ");
-
     int64_t time = time_function(gen_keys);
-
     printf("DONE %lims\n", time);
+
 
 // ------------------------------------------------------------------------------------
 // Step 2: Encrypt Data
 // ------------------------------------------------------------------------------------
+    printf("Encrypting data... ");
+    time = time_function(encrypt_data);
+    printf("DONE %lims\n", time);
 
 
 // ------------------------------------------------------------------------------------
 // Step 3: Perform "Cloud" Function
 // ------------------------------------------------------------------------------------
+    printf("Performing \"cloud\" operations...\n");
+    time = time_function(cloud);
+    printf("DONE %lims\n", time);
 
 
 // ------------------------------------------------------------------------------------
 // Step 4: Verify
 // ------------------------------------------------------------------------------------
+    printf("Verifying data... ");
+    time = time_function(verify_data);
+    printf("DONE %lims\n", time);
 }
 
 
 
 // ------------------------------------------------------------------------------------
 // Helper Functions
-// ------------------------------------------------------------------------------------
-
-void gen_keys() {
-    int minimum_lambda = 110;
-    TFheGateBootstrappingParameterSet* params = new_default_gate_bootstrapping_parameters(minimum_lambda);
-
-    uint32_t seed[] = { 314, 1337, 1907 };
-    tfhe_random_generator_setSeed(seed, 3);
-    TFheGateBootstrappingSecretKeySet* key = new_random_gate_bootstrapping_secret_keyset(params);
-
-    FILE* f_secret_key = fopen("secret.key", "wb");
-    export_tfheGateBootstrappingSecretKeySet_toFile(f_secret_key, key);
-    fclose(f_secret_key);
-
-    FILE* f_cloud_key = fopen("cloud.key", "wb");
-    export_tfheGateBootstrappingCloudKeySet_toFile(f_cloud_key, &key->cloud);
-    fclose(f_cloud_key);
-
-    delete_gate_bootstrapping_secret_keyset(key);
-    delete_gate_bootstrapping_parameters(params);
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// ------------------------------------------------------------------------------------
-// Main program
-// ------------------------------------------------------------------------------------
-int main_old(int argc, char** argv)
-{
-// ------------------------------------------------------------------------------------
-// Step 1: Initialize the OpenCL environment
-// ------------------------------------------------------------------------------------
-    cl_int err;
-    std::string binaryFile = (argc != 2) ? "maths.xclbin" : argv[1];
-    unsigned fileBufSize;
-    std::vector<cl::Device> devices = get_xilinx_devices();
-    devices.resize(1);
-    cl::Device device = devices[0];
-    cl::Context context(device, NULL, NULL, NULL, &err);
-    char* fileBuf = read_binary_file(binaryFile, fileBufSize);
-    cl::Program::Binaries bins{{fileBuf, fileBufSize}};
-    cl::Program program(context, devices, bins, NULL, &err);
-    cl::CommandQueue q(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
-    cl::Kernel krnl_vector_add(program, "vadd", &err);
-    cl::Kernel krnl_vector_sub(program, "vsub", &err);
-
-// ------------------------------------------------------------------------------------
-// Step 2: Create buffers and initialize test values
-// ------------------------------------------------------------------------------------
-    // Create the buffers and allocate memory
-    cl::Buffer in1_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY,  sizeof(int) * DATA_SIZE, NULL, &err);
-    cl::Buffer in2_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY,  sizeof(int) * DATA_SIZE, NULL, &err);
-    cl::Buffer add_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_WRITE_ONLY, sizeof(int) * DATA_SIZE, NULL, &err);
-    cl::Buffer sub_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_WRITE_ONLY, sizeof(int) * DATA_SIZE, NULL, &err);
-
-    // Map host-side buffer memory to user-space pointers
-    int *in1 = (int *)q.enqueueMapBuffer(in1_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(int) * DATA_SIZE, NULL);
-    int *in2 = (int *)q.enqueueMapBuffer(in2_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(int) * DATA_SIZE, NULL);
-    int *out_add = (int *)q.enqueueMapBuffer(add_buf, CL_TRUE, CL_MAP_WRITE | CL_MAP_READ, 0, sizeof(int) * DATA_SIZE, NULL);
-    int *out_sub = (int *)q.enqueueMapBuffer(sub_buf, CL_TRUE, CL_MAP_WRITE | CL_MAP_READ, 0, sizeof(int) * DATA_SIZE, NULL);
-
-    // Initialize the vectors used in the test
-    for(int i = 0 ; i < DATA_SIZE ; i++){
-        in1[i] = rand() % DATA_SIZE;
-        in2[i] = rand() % DATA_SIZE;
-        out_add[i] = 0;
-        out_sub[i] = 0;
-    }
-
-// ------------------------------------------------------------------------------------
-// Step 3: Run the kernel
-// ------------------------------------------------------------------------------------
-    // Set kernel arguments
-    krnl_vector_add.setArg(0, in1_buf);
-    krnl_vector_add.setArg(1, in2_buf);
-    krnl_vector_add.setArg(2, add_buf);
-    krnl_vector_add.setArg(3, DATA_SIZE);
-
-    // Schedule transfer of inputs to device memory, execution of kernel, and transfer of outputs back to host memory
-    q.enqueueMigrateMemObjects({in1_buf, in2_buf}, 0 /* 0 means from host*/);
-    q.enqueueTask(krnl_vector_add);
-    q.enqueueMigrateMemObjects({add_buf}, CL_MIGRATE_MEM_OBJECT_HOST);
-
-    // Set kernel arguments
-    krnl_vector_sub.setArg(0, in1_buf);
-    krnl_vector_sub.setArg(1, in2_buf);
-    krnl_vector_sub.setArg(2, sub_buf);
-    krnl_vector_sub.setArg(3, DATA_SIZE);
-
-    // Schedule transfer of inputs to device memory, execution of kernel, and transfer of outputs back to host memory
-    q.enqueueMigrateMemObjects({in1_buf, in2_buf}, 0 /* 0 means from host*/);
-    q.enqueueTask(krnl_vector_sub);
-    q.enqueueMigrateMemObjects({sub_buf}, CL_MIGRATE_MEM_OBJECT_HOST);
-
-    // Wait for all scheduled operations to finish
-    q.finish();
-
-// ------------------------------------------------------------------------------------
-// Step 4: Check Results and Release Allocated Resources
-// ------------------------------------------------------------------------------------
-    bool match = true;
-    for (int i = 0 ; i < DATA_SIZE ; i++){
-        int expected_add = in1[i]+in2[i];
-        int expected_sub = in1[i]-in2[i];
-        if (out_add[i] != expected_add || out_sub[i] != expected_sub){
-            std::cout << "Error: Result mismatch" << std::endl;
-            std::cout << "i = " << i << " CPU result = " << expected_add << " Device result = " << out_add[i] << std::endl;
-            std::cout << "i = " << i << " CPU result = " << expected_sub << " Device result = " << out_sub[i] << std::endl;
-            match = false;
-            break;
-        }
-    }
-
-    delete[] fileBuf;
-
-    std::cout << "TEST " << (match ? "PASSED" : "FAILED") << std::endl;
-    return (match ? EXIT_SUCCESS : EXIT_FAILURE);
-}
-
-
-
-// ------------------------------------------------------------------------------------
-// Utility functions
 // ------------------------------------------------------------------------------------
 std::vector<cl::Device> get_xilinx_devices()
 {
@@ -238,4 +109,119 @@ char* read_binary_file(const std::string &xclbin_file_name, unsigned &nb)
     char *buf = new char [nb];
     bin_file.read(buf, nb);
     return buf;
+}
+
+void gen_keys() {
+    int minimum_lambda = 110;
+    TFheGateBootstrappingParameterSet* params = new_default_gate_bootstrapping_parameters(minimum_lambda);
+
+    uint32_t seed[] = { 314, 1337, 1907 };
+    tfhe_random_generator_setSeed(seed, 3);
+    TFheGateBootstrappingSecretKeySet* key = new_random_gate_bootstrapping_secret_keyset(params);
+
+    FILE* f_secret_key = fopen("secret.key", "wb");
+    export_tfheGateBootstrappingSecretKeySet_toFile(f_secret_key, key);
+    fclose(f_secret_key);
+
+    FILE* f_cloud_key = fopen("cloud.key", "wb");
+    export_tfheGateBootstrappingCloudKeySet_toFile(f_cloud_key, &key->cloud);
+    fclose(f_cloud_key);
+
+    delete_gate_bootstrapping_secret_keyset(key);
+    delete_gate_bootstrapping_parameters(params);
+}
+
+void encrypt_data() {
+    FILE* f_secret_key = fopen("secret.key", "rb");
+    TFheGateBootstrappingSecretKeySet* secret_key = new_tfheGateBootstrappingSecretKeySet_fromFile(f_secret_key);
+    fclose(f_secret_key);
+
+    const TFheGateBootstrappingParameterSet* secret_params = secret_key->params;
+
+    int16_t data1 = MAX_NUMBER;
+    int16_t data2 = MIN_NUMBER;
+
+    LweSample* cyphertext1 = new_gate_bootstrapping_ciphertext_array(DATA_LENGTH, secret_params);
+    LweSample* cyphertext2 = new_gate_bootstrapping_ciphertext_array(DATA_LENGTH, secret_params);
+
+    for(int i = 0; i< DATA_LENGTH; i++) {
+        bootsSymEncrypt(&cyphertext1[i], (data1 >> i) & 1, secret_key);
+        bootsSymEncrypt(&cyphertext2[i], (data2 >> i) & 1, secret_key);
+    }
+
+    FILE* cloud_data = fopen("cloud.data", "wb");
+    for(int i = 0; i<DATA_LENGTH; i++) {
+        export_gate_bootstrapping_ciphertext_toFile(cloud_data, &cyphertext1[i], secret_params);
+    }
+    for(int i = 0; i<DATA_LENGTH; i++) {
+        export_gate_bootstrapping_ciphertext_toFile(cloud_data, &cyphertext2[i], secret_params);
+    }
+    fclose(cloud_data);
+
+    delete_gate_bootstrapping_ciphertext_array(DATA_LENGTH, cyphertext1);
+    delete_gate_bootstrapping_ciphertext_array(DATA_LENGTH, cyphertext2);
+    delete_gate_bootstrapping_secret_keyset(secret_key);
+}
+
+void cloud() {
+    // Load the cloud key
+    FILE* cloud_key = fopen("cloud.key", "rb");
+    TFheGateBootstrappingCloudKeySet* bk = new_tfheGateBootstrappingCloudKeySet_fromFile(cloud_key);
+    fclose(cloud_key);
+    const TFheGateBootstrappingParameterSet* cloud_params = bk->params;
+
+    LweSample* a_cipher = new_gate_bootstrapping_ciphertext_array(DATA_LENGTH, cloud_params);
+    LweSample* b_cipher = new_gate_bootstrapping_ciphertext_array(DATA_LENGTH, cloud_params);
+
+    // Load data from file into ciphertext arrays
+    FILE* cloud_data = fopen("cloud.data", "rb");
+    for(int i=0; i<DATA_LENGTH;i++)
+        import_gate_bootstrapping_ciphertext_fromFile(cloud_data, &a_cipher[i], cloud_params);
+    for(int i=0; i<DATA_LENGTH;i++)
+        import_gate_bootstrapping_ciphertext_fromFile(cloud_data, &b_cipher[i], cloud_params);
+    fclose(cloud_data);
+
+    // Allocate space for the result
+    LweSample* result = new_gate_bootstrapping_ciphertext_array(DATA_LENGTH, cloud_params);
+
+    // Cloud computation
+    CloudCompute cloud;
+    cloud.minimum(result, a_cipher, b_cipher, DATA_LENGTH, bk);
+
+    FILE* answer_data = fopen("answer.data", "wb");
+    for(int i=0; i<DATA_LENGTH; i++) {
+        export_gate_bootstrapping_ciphertext_toFile(answer_data, &result[i], cloud_params);
+    }
+    fclose(answer_data);
+
+    delete_gate_bootstrapping_ciphertext_array(DATA_LENGTH, result);
+    delete_gate_bootstrapping_ciphertext_array(DATA_LENGTH, b_cipher);
+    delete_gate_bootstrapping_ciphertext_array(DATA_LENGTH, a_cipher);
+    delete_gate_bootstrapping_cloud_keyset(bk);
+}
+
+void verify_data() {
+    FILE* secret_key = fopen("secret.key", "rb");
+    TFheGateBootstrappingSecretKeySet* verify_key = new_tfheGateBootstrappingSecretKeySet_fromFile(secret_key);
+    fclose(secret_key);
+
+    const TFheGateBootstrappingParameterSet* verify_params = verify_key->params;
+    LweSample* answer = new_gate_bootstrapping_ciphertext_array(DATA_LENGTH, verify_params);
+
+    FILE* answer_data = fopen("answer.data", "rb");
+    for(int i = 0; i < DATA_LENGTH; i++) {
+        import_gate_bootstrapping_ciphertext_fromFile(answer_data, &answer[i], verify_params);
+    }
+    fclose(answer_data);
+
+    int16_t int_answer = 0;
+    for(int i = 0; i < DATA_LENGTH; i++) {
+        int ai = bootsSymDecrypt(&answer[i], verify_key);
+        int_answer |= (ai << i);
+    }
+
+    printf("The answer is: %d\n", int_answer);
+
+    delete_gate_bootstrapping_ciphertext_array(DATA_LENGTH, answer);
+    delete_gate_bootstrapping_secret_keyset(verify_key);
 }
