@@ -6,7 +6,7 @@
 
 class CloudCompute {
 public:
-  CloudCompute();
+  CloudCompute(std::string binaryFile);
   void minimum(LweSample* result, const LweSample* a, const LweSample* b, const int nb_bits, const TFheGateBootstrappingCloudKeySet* bk);
 private:
   void __minimum_cpu(LweSample* result, const LweSample* a, const LweSample* b, const int nb_bits, const TFheGateBootstrappingCloudKeySet* bk);

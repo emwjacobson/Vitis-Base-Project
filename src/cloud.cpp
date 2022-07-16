@@ -1,9 +1,24 @@
 #include "cloud.hpp"
 #include "utils.hpp"
 #include <chrono>
+#include <string>
+#include <CL/cl2.hpp>
 
-CloudCompute::CloudCompute() {
-  // TODO: Setup OpenCL stuff here
+CloudCompute::CloudCompute(std::string binaryFile) {
+// ------------------------------------------------------------------------------------
+// Step 1: Initialize the OpenCL environment
+// ------------------------------------------------------------------------------------
+    cl_int err;
+    unsigned fileBufSize;
+    std::vector<cl::Device> devices = get_xilinx_devices();
+    devices.resize(1);
+    cl::Device device = devices[0];
+    cl::Context context(device, NULL, NULL, NULL, &err);
+    char* fileBuf = read_binary_file(binaryFile + ".xclbin", fileBufSize);
+    cl::Program::Binaries bins{{fileBuf, fileBufSize}};
+    cl::Program program(context, devices, bins, NULL, &err);
+    cl::CommandQueue q(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
+    // cl::Kernel krnl_vector_add(program, "vadd", &err);
 }
 
 void CloudCompute::minimum(LweSample* result, const LweSample* a, const LweSample* b, const int nb_bits, const TFheGateBootstrappingCloudKeySet* bk) {
@@ -153,3 +168,4 @@ void CloudCompute::__lweCopy(LweSample* result, const LweSample* sample, const L
 //     std::cout << "TEST " << (match ? "PASSED" : "FAILED") << std::endl;
 //     return (match ? EXIT_SUCCESS : EXIT_FAILURE);
 // }
+
