@@ -7,16 +7,19 @@
 class CloudCompute {
 public:
   CloudCompute(std::string binaryFile);
-  void minimum(LweSample* result, const LweSample* a, const LweSample* b, const int nb_bits, const TFheGateBootstrappingCloudKeySet* bk);
+  void playground(LweSample* result, const LweSample* a, const LweSample* b, const int nb_bits, const TFheGateBootstrappingCloudKeySet* bk);
 private:
-  void __minimum_cpu(LweSample* result, const LweSample* a, const LweSample* b, const int nb_bits, const TFheGateBootstrappingCloudKeySet* bk);
-  void __minimum_fpga(LweSample* result, const LweSample* a, const LweSample* b, const int nb_bits, const TFheGateBootstrappingCloudKeySet* bk);
+  void __playground_cpu(LweSample* result, const LweSample* a, const LweSample* b, const int nb_bits, const TFheGateBootstrappingCloudKeySet* bk);
+  void __playground_fpga(LweSample* result, const LweSample* a, const LweSample* b, const int nb_bits, const TFheGateBootstrappingCloudKeySet* bk);
 
   // Gates
   void __bootsCOPY(LweSample *result, const LweSample *ca, const TFheGateBootstrappingCloudKeySet *bk);
+  void __bootsAND(LweSample *result, const LweSample *ca, const LweSample *cb, const TFheGateBootstrappingCloudKeySet *bk);
 
   // LWE Functions
   void __lweCopy(LweSample* result, const LweSample* sample, const LweParams* params);
+  void __lweAddTo(LweSample* result, const LweSample* sample, const LweParams* params);
+  void __lweNoiselessTrivial(LweSample* result, Torus32 mu, const LweParams* params);
 };
 
 #endif

@@ -10,8 +10,8 @@
 #include <CL/cl2.hpp>
 
 
-#define MAX_NUMBER 3939
-#define MIN_NUMBER 111
+#define MAX_NUMBER 0b0100001100100001
+#define MIN_NUMBER 0b1111111111111110
 #define DATA_LENGTH 16
 
 #define KERNEL_NAME "maths"
@@ -137,7 +137,7 @@ void cloud() {
 
     // Cloud computation
     CloudCompute cloud(KERNEL_NAME);
-    cloud.minimum(result, a_cipher, b_cipher, DATA_LENGTH, bk);
+    cloud.playground(result, a_cipher, b_cipher, DATA_LENGTH, bk);
 
     FILE* answer_data = fopen("answer.data", "wb");
     for(int i=0; i<DATA_LENGTH; i++) {
@@ -171,7 +171,7 @@ void verify_data() {
         int_answer |= (ai << i);
     }
 
-    printf("The answer is: %d\n", int_answer);
+    printf("The answer is: %X\n", int_answer);
 
     delete_gate_bootstrapping_ciphertext_array(DATA_LENGTH, answer);
     delete_gate_bootstrapping_secret_keyset(verify_key);

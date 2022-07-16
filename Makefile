@@ -3,7 +3,7 @@ CONFIG_NAME := config.cfg
 TARGET := sw_emu
 PROJECT_NAME := maths
 
-KERNEL_XO := vadd.xo vsub.xo
+KERNEL_XO := vadd.xo
 SRC := host.cpp utils.cpp cloud.cpp
 
 VPP := v++
