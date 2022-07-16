@@ -8,9 +8,9 @@ SRC := host.cpp utils.cpp cloud.cpp
 
 VPP := v++
 VPP_XO_FLAGS := -c --platform $(PLATFORM)
-VPP_XCLBIN_FLAGS := -l --profile_kernel data:all:all:all --platform $(PLATFORM) -t $(TARGET) --config $(CONFIG_NAME) $(KERNEL_XO) -o $(PROJECT_NAME).xclbin
+VPP_XCLBIN_FLAGS := -l --profile_kernel data:all:all:all -O1 --platform $(PLATFORM) -t $(TARGET) --config $(CONFIG_NAME) $(KERNEL_XO) -o $(PROJECT_NAME).xclbin
 
-CXX_FLAGS := -Wall -c -g -std=c++11
+CXX_FLAGS := -Wall -c -g -std=c++11 -O1
 CXX_INCLUDES := -I$(XILINX_XRT)/include/ -I$(CURDIR)/include/
 CXX_LIB := -L$(XILINX_XRT)/lib/ -L$(CURDIR)/lib/ -ltfhe-nayuki-portable -lOpenCL -lpthread -lrt -lstdc++
 
@@ -25,7 +25,7 @@ hw_emu:
 	XCL_EMULATION_MODE=hw_emu ./$(PROJECT_NAME)
 
 host: $(SRC)
-	$(CXX) *.o $(CXX_LIB) -std=c++11 -o $(PROJECT_NAME)
+	$(CXX) *.o $(CXX_LIB) -O1 -std=c++11 -o $(PROJECT_NAME)
 
 %.cpp: src/%.cpp
 	$(CXX) $(CXX_FLAGS) $(CXX_INCLUDES)  $< -o $(basename $@).o

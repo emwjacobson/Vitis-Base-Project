@@ -10,15 +10,14 @@ void CloudCompute::minimum(LweSample* result, const LweSample* a, const LweSampl
   int64_t time;
 
   time = time_function<std::chrono::microseconds>([this, result, a, b, nb_bits, bk]() -> void {
-          __minimum_fpga(result, a, b, nb_bits, bk);
-        });
-  printf("FPGA Kernel Took %lius\n", time);
-
-  time = time_function<std::chrono::microseconds>([this, result, a, b, nb_bits, bk]() -> void {
           __minimum_cpu(result, a, b, nb_bits, bk);
         });
   printf("CPU Kernel Took %lius\n", time);
 
+  time = time_function<std::chrono::microseconds>([this, result, a, b, nb_bits, bk]() -> void {
+          __minimum_fpga(result, a, b, nb_bits, bk);
+        });
+  printf("FPGA Kernel Took %lius\n", time);
 }
 
 void CloudCompute::__minimum_cpu(LweSample* result, const LweSample* a, const LweSample* b, const int nb_bits, const TFheGateBootstrappingCloudKeySet* bk) {
