@@ -50,71 +50,81 @@ int main(int argc, char** argv)
     char* fileBuf = read_binary_file(binaryFile, fileBufSize);
     cl::Program::Binaries bins{{fileBuf, fileBufSize}};
     cl::Program program(context, devices, bins, NULL, &err);
-    // cl::CommandQueue q(context, device, CL_QUEUE_PROFILING_ENABLE | CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, &err);
-    // cl::Kernel krnl_vector_add(program,"vadd", &err);
+    cl::CommandQueue q(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
+    cl::Kernel krnl_vector_add(program,"vadd", &err);
+    cl::Kernel krnl_vector_sub(program,"vsub", &err);
 
-    return 0;
+// ------------------------------------------------------------------------------------
+// Step 2: Create buffers and initialize test values
+// ------------------------------------------------------------------------------------
+    // Create the buffers and allocate memory
+    cl::Buffer in1_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY,  sizeof(int) * DATA_SIZE, NULL, &err);
+    cl::Buffer in2_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY,  sizeof(int) * DATA_SIZE, NULL, &err);
+    cl::Buffer add_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_WRITE_ONLY, sizeof(int) * DATA_SIZE, NULL, &err);
+    cl::Buffer sub_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_WRITE_ONLY, sizeof(int) * DATA_SIZE, NULL, &err);
 
-// // ------------------------------------------------------------------------------------
-// // Step 2: Create buffers and initialize test values
-// // ------------------------------------------------------------------------------------
-//     // Create the buffers and allocate memory
-//     cl::Buffer in1_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY,  sizeof(int) * DATA_SIZE, NULL, &err);
-//     cl::Buffer in2_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_READ_ONLY,  sizeof(int) * DATA_SIZE, NULL, &err);
-//     cl::Buffer out_buf(context, CL_MEM_ALLOC_HOST_PTR | CL_MEM_WRITE_ONLY, sizeof(int) * DATA_SIZE, NULL, &err);
+    // Map host-side buffer memory to user-space pointers
+    int *in1 = (int *)q.enqueueMapBuffer(in1_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(int) * DATA_SIZE, NULL);
+    int *in2 = (int *)q.enqueueMapBuffer(in2_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(int) * DATA_SIZE, NULL);
+    int *out_add = (int *)q.enqueueMapBuffer(add_buf, CL_TRUE, CL_MAP_WRITE | CL_MAP_READ, 0, sizeof(int) * DATA_SIZE, NULL);
+    int *out_sub = (int *)q.enqueueMapBuffer(sub_buf, CL_TRUE, CL_MAP_WRITE | CL_MAP_READ, 0, sizeof(int) * DATA_SIZE, NULL);
 
-//     std::vector<cl::Event> event_list(3);
+    // Initialize the vectors used in the test
+    for(int i = 0 ; i < DATA_SIZE ; i++){
+        in1[i] = rand() % DATA_SIZE;
+        in2[i] = rand() % DATA_SIZE;
+        out_add[i] = 0;
+        out_sub[i] = 0;
+    }
 
-//     // Map host-side buffer memory to user-space pointers
-//     int *in1 = (int *)q.enqueueMapBuffer(in1_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(int) * DATA_SIZE, NULL, &event_list[0]);
-//     int *in2 = (int *)q.enqueueMapBuffer(in2_buf, CL_TRUE, CL_MAP_WRITE, 0, sizeof(int) * DATA_SIZE, NULL, &event_list[1]);
-//     int *out = (int *)q.enqueueMapBuffer(out_buf, CL_TRUE, CL_MAP_WRITE | CL_MAP_READ, 0, sizeof(int) * DATA_SIZE, NULL, &event_list[2]);
+// ------------------------------------------------------------------------------------
+// Step 3: Run the kernel
+// ------------------------------------------------------------------------------------
+    // Set kernel arguments
+    krnl_vector_add.setArg(0, in1_buf);
+    krnl_vector_add.setArg(1, in2_buf);
+    krnl_vector_add.setArg(2, add_buf);
+    krnl_vector_add.setArg(3, DATA_SIZE);
 
-//     // Initialize the vectors used in the test
-//     for(int i = 0 ; i < DATA_SIZE ; i++){
-//         in1[i] = rand() % DATA_SIZE;
-//         in2[i] = rand() % DATA_SIZE;
-//         out[i] = 0;
-//     }
+    // Schedule transfer of inputs to device memory, execution of kernel, and transfer of outputs back to host memory
+    q.enqueueMigrateMemObjects({in1_buf, in2_buf}, 0 /* 0 means from host*/);
+    q.enqueueTask(krnl_vector_add);
+    q.enqueueMigrateMemObjects({add_buf}, CL_MIGRATE_MEM_OBJECT_HOST);
 
-// // ------------------------------------------------------------------------------------
-// // Step 3: Run the kernel
-// // ------------------------------------------------------------------------------------
-//     // Set kernel arguments
-//     krnl_vector_add.setArg(0, in1_buf);
-//     krnl_vector_add.setArg(1, in2_buf);
-//     krnl_vector_add.setArg(2, out_buf);
-//     krnl_vector_add.setArg(3, DATA_SIZE);
+    // Set kernel arguments
+    krnl_vector_sub.setArg(0, in1_buf);
+    krnl_vector_sub.setArg(1, in2_buf);
+    krnl_vector_sub.setArg(2, sub_buf);
+    krnl_vector_sub.setArg(3, DATA_SIZE);
 
-//     // Schedule transfer of inputs to device memory, execution of kernel, and transfer of outputs back to host memory
-//     std::vector<cl::Event> migrate_event;
-//     q.enqueueMigrateMemObjects({in1_buf, in2_buf}, 0 /* 0 means from host*/, &event_list, &migrate_event[0]);
-//     std::vector<cl::Event> task_events(2);
-//     q.enqueueTask(krnl_vector_add, &migrate_event, &task_events[0]);
-//     q.enqueueTask(krnl_vector_add, &migrate_event, &task_events[1]);
-//     q.enqueueMigrateMemObjects({out_buf}, CL_MIGRATE_MEM_OBJECT_HOST, &task_events);
+    // Schedule transfer of inputs to device memory, execution of kernel, and transfer of outputs back to host memory
+    q.enqueueMigrateMemObjects({in1_buf, in2_buf}, 0 /* 0 means from host*/);
+    q.enqueueTask(krnl_vector_sub);
+    q.enqueueMigrateMemObjects({sub_buf}, CL_MIGRATE_MEM_OBJECT_HOST);
 
-//     // Wait for all scheduled operations to finish
-//     q.finish();
+    // Wait for all scheduled operations to finish
+    q.finish();
 
-// // ------------------------------------------------------------------------------------
-// // Step 4: Check Results and Release Allocated Resources
-// // ------------------------------------------------------------------------------------
-//     bool match = true;
-//     for (int i = 0 ; i < DATA_SIZE ; i++){
-//         int expected = in1[i]+in2[i];
-//         if (out[i] != expected){
-//             std::cout << "Error: Result mismatch" << std::endl;
-//             std::cout << "i = " << i << " CPU result = " << expected << " Device result = " << out[i] << std::endl;
-//             match = false;
-//             break;
-//         }
-//     }
+// ------------------------------------------------------------------------------------
+// Step 4: Check Results and Release Allocated Resources
+// ------------------------------------------------------------------------------------
+    bool match = true;
+    for (int i = 0 ; i < DATA_SIZE ; i++){
+        int expected_add = in1[i]+in2[i];
+        int expected_sub = in1[i]-in2[i];
+        if (out_add[i] != expected_add || out_sub[i] != expected_sub){
+            std::cout << "Error: Result mismatch" << std::endl;
+            std::cout << "i = " << i << " CPU result = " << expected_add << " Device result = " << out_add[i] << std::endl;
+            std::cout << "i = " << i << " CPU result = " << expected_sub << " Device result = " << out_sub[i] << std::endl;
+            match = false;
+            break;
+        }
+    }
 
-//     delete[] fileBuf;
+    delete[] fileBuf;
 
-//     std::cout << "TEST " << (match ? "PASSED" : "FAILED") << std::endl;
-//     return (match ? EXIT_SUCCESS : EXIT_FAILURE);
+    std::cout << "TEST " << (match ? "PASSED" : "FAILED") << std::endl;
+    return (match ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
 

@@ -3,7 +3,7 @@ CONFIG_NAME := config.cfg
 TARGET := sw_emu
 PROJECT_NAME := maths
 
-KERNEL_XO := vadd.xo
+KERNEL_XO := vadd.xo vsub.xo
 SRC := host.cpp
 
 VPP := v++
@@ -15,6 +15,14 @@ CXX_INCLUDES := -I${XILINX_XRT}/include/
 CXX_LIB := -L${XILINX_XRT}/lib/ -lOpenCL -lpthread -lrt -lstdc++
 
 all: xclbin host
+
+sw_emu:
+	emconfigutil --platform $(PLATFORM) --nd 1
+	XCL_EMULATION_MODE=sw_emu ./$(PROJECT_NAME)
+
+hw_emu:
+	emconfigutil --platform $(PLATFORM) --nd 1
+	XCL_EMULATION_MODE=hw_emu ./$(PROJECT_NAME)
 
 host: $(SRC)
 	$(CXX) *.o $(CXX_LIB) -std=c++11 -o $(PROJECT_NAME)
@@ -31,13 +39,3 @@ xclbin: $(KERNEL_XO)
 clean:
 	rm -rf *json *csv *log *summary _x .run .Xil .ipcache *.jou $(KERNEL_XO) *.xclbin* $(PROJECT_NAME) *.o *.xo
 
-
-# sw_emu: TARGET = sw_emu
-# sw_emu: clean all
-# 	emconfigutil --platform ${PLATFORM} --nd 1
-# 	XCL_EMULATION_MODE=sw_emu ./app
-
-# hw_emu: TARGET = hw_emu
-# hw_emu: clean all
-# 	emconfigutil --platform ${PLATFORM} --nd 1
-# 	XCL_EMULATION_MODE=hw_emu ./app
