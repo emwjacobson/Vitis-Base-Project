@@ -20,6 +20,12 @@ private:
   void __lweCopy(LweSample* result, const LweSample* sample, const LweParams* params);
   void __lweAddTo(LweSample* result, const LweSample* sample, const LweParams* params);
   void __lweNoiselessTrivial(LweSample* result, Torus32 mu, const LweParams* params);
+
+  // FFT Functions
+  void __tfhe_bootstrap_FFT(LweSample *result, const LweBootstrappingKeyFFT *bk, Torus32 mu, const LweSample *x);
+  void __tfhe_bootstrap_woKS_FFT(LweSample *result, const LweBootstrappingKeyFFT *bk, Torus32 mu, const LweSample *x);
+  void __tfhe_blindRotateAndExtract_FFT(LweSample *result, const TorusPolynomial *v, const TGswSampleFFT *bk, const int32_t barb,
+                                        const int32_t *bara, const int32_t n, const TGswParams *bk_params);
 };
 
 #endif
