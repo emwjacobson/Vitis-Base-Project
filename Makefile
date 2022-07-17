@@ -8,11 +8,18 @@ SRC := host.cpp utils.cpp cloud.cpp
 
 VPP := v++
 VPP_XO_FLAGS := -c --platform $(PLATFORM)
-VPP_XCLBIN_FLAGS := -l --profile_kernel data:all:all:all -O1 --platform $(PLATFORM) -t $(TARGET) --config $(CONFIG_NAME) $(KERNEL_XO) -o $(PROJECT_NAME).xclbin
+# VPP_XCLBIN_FLAGS := -l --profile_kernel data:all:all:all -O1 --platform $(PLATFORM) -t $(TARGET) --config $(CONFIG_NAME) $(KERNEL_XO) -o $(PROJECT_NAME).xclbin
+VPP_XCLBIN_FLAGS := -l --profile_kernel data:all:all:all --platform $(PLATFORM) -t $(TARGET) --config $(CONFIG_NAME) $(KERNEL_XO) -o $(PROJECT_NAME).xclbin
 
-CXX_FLAGS := -Wall -c -g -std=c++11 -O1
+# CXX_FLAGS := -Wall -c -g -std=c++11 -O1
+CXX_FLAGS := -Wall -c -g -std=c++11
 CXX_INCLUDES := -I$(XILINX_XRT)/include/ -I$(CURDIR)/include/
-CXX_LIB := -L$(XILINX_XRT)/lib/ -L$(CURDIR)/lib/ -ltfhe-nayuki-portable -lOpenCL -lpthread -lrt -lstdc++
+CXX_LIB := -L$(XILINX_XRT)/lib/ -L$(CURDIR)/lib/ -ltfhe-spqlios-avx -lOpenCL -lpthread -lrt -lstdc++
+
+# tfhe-nayuki-avx
+# tfhe-nayuki-portable
+# tfhe-spqlios-avx
+# tfhe-spqlios-fma
 
 all: xclbin host
 
@@ -37,4 +44,4 @@ xclbin: $(KERNEL_XO)
 	$(VPP) $(VPP_XO_FLAGS) -k $(basename $(notdir $<)) $< -o $@
 
 clean:
-	rm -rf *json *csv *log *summary _x .run .Xil .ipcache *.jou $(KERNEL_XO) *.xclbin* $(PROJECT_NAME) *.o *.xo *.key *.data
+	rm -rf *json *csv *log *summary _x .run .Xil .ipcache *.jou $(KERNEL_XO) *.xclbin* $(PROJECT_NAME) *.o *.xo *.key *.data callgrind* vitis_analyzer*

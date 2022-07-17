@@ -14,3 +14,5 @@ include/tfhe
 lib
 *.key
 *.data
+callgrind*
+vitis_analyzer*
