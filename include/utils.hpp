@@ -14,6 +14,12 @@
 #include <vector>
 #include <CL/cl2.hpp>
 
+#define MAX_NUMBER 0b0100001100100001
+#define MIN_NUMBER 0b1111111111111110
+
+#define DATA_LENGTH 16
+#define KERNEL_NAME "maths"
+
 std::vector<cl::Device> get_xilinx_devices();
 char* read_binary_file(const std::string &xclbin_file_name, unsigned &nb);
 

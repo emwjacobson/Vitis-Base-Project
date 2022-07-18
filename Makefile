@@ -4,15 +4,14 @@ TARGET := sw_emu
 PROJECT_NAME := maths
 
 KERNEL_XO := vadd.xo
-SRC := host.cpp utils.cpp cloud.cpp
+BINS := host.cpp cloud.cpp verify.cpp
+SRC := utils.cpp cloudcompute.cpp
 
 VPP := v++
 VPP_XO_FLAGS := -c --platform $(PLATFORM)
-# VPP_XCLBIN_FLAGS := -l --profile_kernel data:all:all:all -O1 --platform $(PLATFORM) -t $(TARGET) --config $(CONFIG_NAME) $(KERNEL_XO) -o $(PROJECT_NAME).xclbin
-VPP_XCLBIN_FLAGS := -l --profile_kernel data:all:all:all --platform $(PLATFORM) -t $(TARGET) --config $(CONFIG_NAME) $(KERNEL_XO) -o $(PROJECT_NAME).xclbin
+VPP_XCLBIN_FLAGS := -l --profile_kernel data:all:all:all -O1 --platform $(PLATFORM) -t $(TARGET) --config $(CONFIG_NAME) $(KERNEL_XO) -o $(PROJECT_NAME).xclbin
 
-# CXX_FLAGS := -Wall -c -g -std=c++11 -O1
-CXX_FLAGS := -Wall -c -g -std=c++11
+CXX_FLAGS := -Wall -c -g -std=c++11 -O1
 CXX_INCLUDES := -I$(XILINX_XRT)/include/ -I$(CURDIR)/include/
 CXX_LIB := -L$(XILINX_XRT)/lib/ -L$(CURDIR)/lib/ -ltfhe-nayuki-portable -lOpenCL -lpthread -lrt -lstdc++
 
@@ -31,8 +30,10 @@ hw_emu:
 	emconfigutil --platform $(PLATFORM) --nd 1
 	XCL_EMULATION_MODE=hw_emu ./$(PROJECT_NAME)
 
-host: $(SRC)
-	$(CXX) *.o $(CXX_LIB) -O1 -std=c++11 -o $(PROJECT_NAME)
+host: $(BINS) $(SRC)
+	$(CXX) host.o $(addsuffix .o, $(basename $(SRC))) $(CXX_LIB) -O1 -std=c++11 -o host
+	$(CXX) cloud.o $(addsuffix .o, $(basename $(SRC))) $(CXX_LIB) -O1 -std=c++11 -o cloud
+	$(CXX) verify.o $(addsuffix .o, $(basename $(SRC))) $(CXX_LIB) -O1 -std=c++11 -o verify
 
 %.cpp: src/%.cpp
 	$(CXX) $(CXX_FLAGS) $(CXX_INCLUDES) $< -o $(basename $@).o
@@ -44,4 +45,4 @@ xclbin: $(KERNEL_XO)
 	$(VPP) $(VPP_XO_FLAGS) -k $(basename $(notdir $<)) $< -o $@
 
 clean:
-	rm -rf *json *csv *log *summary _x .run .Xil .ipcache *.jou $(KERNEL_XO) *.xclbin* $(PROJECT_NAME) *.o *.xo *.key *.data callgrind* vitis_analyzer*
+	rm -rf *json *csv *log *summary _x .run .Xil .ipcache *.jou $(KERNEL_XO) *.xclbin* $(PROJECT_NAME) *.o *.xo *.key *.data callgrind* vitis_analyzer* cloud host verify
