@@ -167,7 +167,7 @@ void CloudCompute::__tfhe_blindRotateAndExtract_FFT(LweSample *result, const Tor
     const int32_t N = accum_params->N;
     const int32_t _2N = 2 * N;
 
-    // Test polynomial 
+    // Test polynomial
     TorusPolynomial *testvectbis = new_TorusPolynomial(N);
     // Accumulator
     TLweSample *acc = new_TLweSample(accum_params);
@@ -178,10 +178,7 @@ void CloudCompute::__tfhe_blindRotateAndExtract_FFT(LweSample *result, const Tor
     if (barb != 0) {
       torusPolynomialMulByXai(testvectbis, _2N - barb, v); // BENCHMARK: 10us
     } else {
-      time = time_function<std::chrono::microseconds>([testvectbis, v]() -> void {
-        torusPolynomialCopy(testvectbis, v);
-      });
-      printf("BENCHMARK `torusPolynomialCopy` took %lius\n", time);
+      torusPolynomialCopy(testvectbis, v);
     }
 
     tLweNoiselessTrivial(acc, testvectbis, accum_params);
@@ -193,6 +190,32 @@ void CloudCompute::__tfhe_blindRotateAndExtract_FFT(LweSample *result, const Tor
     delete_TLweSample(acc);
     delete_TorusPolynomial(testvectbis);
 }
+
+// void CloudCompute::__tfhe_blindRotate_FFT(TLweSample *accum,
+//                                  const TGswSampleFFT *bkFFT,
+//                                  const int32_t *bara,
+//                                  const int32_t n,
+//                                  const TGswParams *bk_params) {
+
+//     //TGswSampleFFT* temp = new_TGswSampleFFT(bk_params);
+//     TLweSample *temp = new_TLweSample(bk_params->tlwe_params);
+//     TLweSample *temp2 = temp;
+//     TLweSample *temp3 = accum;
+
+//     for (int32_t i = 0; i < n; i++) {
+//         const int32_t barai = bara[i];
+//         if (barai == 0) continue; //indeed, this is an easy case!
+
+//         tfhe_MuxRotate_FFT(temp2, temp3, bkFFT + i, barai, bk_params);
+//         swap(temp2, temp3);
+//     }
+//     if (temp3 != accum) {
+//         tLweCopy(accum, temp3, bk_params->tlwe_params);
+//     }
+
+//     delete_TLweSample(temp);
+//     //delete_TGswSampleFFT(temp);
+// }
 
 
 // // ------------------------------------------------------------------------------------

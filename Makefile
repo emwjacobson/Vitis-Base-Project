@@ -14,7 +14,7 @@ VPP_XCLBIN_FLAGS := -l --profile_kernel data:all:all:all --platform $(PLATFORM) 
 # CXX_FLAGS := -Wall -c -g -std=c++11 -O1
 CXX_FLAGS := -Wall -c -g -std=c++11
 CXX_INCLUDES := -I$(XILINX_XRT)/include/ -I$(CURDIR)/include/
-CXX_LIB := -L$(XILINX_XRT)/lib/ -L$(CURDIR)/lib/ -ltfhe-spqlios-avx -lOpenCL -lpthread -lrt -lstdc++
+CXX_LIB := -L$(XILINX_XRT)/lib/ -L$(CURDIR)/lib/ -ltfhe-nayuki-portable -lOpenCL -lpthread -lrt -lstdc++
 
 # tfhe-nayuki-avx
 # tfhe-nayuki-portable
@@ -35,7 +35,7 @@ host: $(SRC)
 	$(CXX) *.o $(CXX_LIB) -O1 -std=c++11 -o $(PROJECT_NAME)
 
 %.cpp: src/%.cpp
-	$(CXX) $(CXX_FLAGS) $(CXX_INCLUDES)  $< -o $(basename $@).o
+	$(CXX) $(CXX_FLAGS) $(CXX_INCLUDES) $< -o $(basename $@).o
 
 xclbin: $(KERNEL_XO)
 	$(VPP) $(VPP_XCLBIN_FLAGS)
